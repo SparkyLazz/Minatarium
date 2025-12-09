@@ -4,4 +4,7 @@ project(Minatarium C)
 set(CMAKE_C_STANDARD 11)
 
 add_executable(Minatarium
-        main.c)
+        main.c
+        Entity/Player.h
+        Blessing/Blessing.h
+        Blessing/BlessingCommon.c)
