@@ -1,5 +1,6 @@
 #ifndef BLESSING_H
 #define BLESSING_H
+#include "../Status/Status.h"
 
 //Bless Effect Type
 typedef enum {
@@ -21,8 +22,14 @@ typedef struct {
     char Description[128];
     BlessingEffectType Type;
 
-    float value;
-    int maxStack;
-    int currentStack;
+    float valueEffect;
+    int maxStackEffect;
+    int currentStackEffect;
+
+    StatusType inflictedStatus;
+    int applyOnHit; // 0 = no, 1 = try to apply when player hits
+    float valueStatus;
+    int maxStackStatus;
+    int currentStackStatus;
 } Blessing;
 #endif
