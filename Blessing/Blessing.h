@@ -2,6 +2,14 @@
 #define BLESSING_H
 #include "../Status/Status.h"
 
+//Blessing Rareness
+typedef enum {
+    RARITY_COMMON,
+    RARITY_RARE,
+    RARITY_EPIC,
+    RARITY_LEGENDARY
+} BlessingRarity;
+
 //Bless Effect Type
 typedef enum {
     //Common Effect
@@ -21,6 +29,7 @@ typedef struct {
     char Name[100];
     char Description[128];
     BlessingEffectType Type;
+    BlessingRarity Rarity;
 
     float valueEffect;
     int maxStackEffect;
