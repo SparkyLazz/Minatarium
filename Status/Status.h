@@ -76,14 +76,4 @@ typedef struct {
     int silence;            // Temporary unable to cast skill
     int luck;               // Influences random rolls (crit, dodge, loot)
 } CombatAttributes;
-
-typedef struct {
-    int maxHP;
-    int HP;
-    int attack;
-    int defense;
-    CombatAttributes combat;
-} Player;
-
-
 #endif

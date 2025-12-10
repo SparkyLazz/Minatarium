@@ -19,3 +19,4 @@ typedef struct {
     int enrageBoost;        // Buff when enraged
     int ultimateSkill;      // Flag for boss’s strongest attack
 } BossEnemy;
+#endif

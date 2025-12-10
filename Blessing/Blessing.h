@@ -22,6 +22,8 @@ typedef enum {
     //Unique Effect
     BLESS_LIFESTYLE,
     BLESS_THORN,
+
+    BLESS_GRANT_SKILL
 } BlessingEffectType;
 
 //Bless Char
@@ -31,6 +33,7 @@ typedef struct {
     BlessingEffectType Type;
     BlessingRarity Rarity;
 
+    //Effect Scaling
     float valueEffect;
     int maxStackEffect;
     int currentStackEffect;
@@ -40,5 +43,12 @@ typedef struct {
     float valueStatus;
     int maxStackStatus;
     int currentStackStatus;
+
+    // LEGENDARY ONLY → gives special action
+    int grantsSkill;
+    char SkillName[100];
+    int SkillCooldown;
+    int SkillCurrentCD;
+
 } Blessing;
 #endif

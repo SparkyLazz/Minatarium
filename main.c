@@ -13,10 +13,7 @@ void EnterDungeon()
     scanf("%99s", player.Name);
 
     //Add Value in Player
-    player.MaxHP = 100;
-    player.HP = player.MaxHP;
-    player.Attack = 10;
-    player.Defense = 5;
+
     printf("==================== Player Stat ==================\n");
     printf("Your Name : %s\n", player.Name);
     printf("HP        : %d\n", player.HP);
