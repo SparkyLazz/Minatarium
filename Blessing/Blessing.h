@@ -12,16 +12,45 @@ typedef enum {
 
 //Bless Effect Type
 typedef enum {
-    //Common Effect
+    // --- Common Effects ---
     BLESS_DAMAGE_BOOST,
     BLESS_HP_BOOST,
     BLESS_DEFEND_BOOST,
     BLESS_CRIT_DAMAGE_BOOST,
-    BLESS_CRIT_CHANGE_BOOST,
+    BLESS_CRIT_CHANCE_BOOST,
 
-    //Unique Effect
-    BLESS_LIFESTYLE,
-    BLESS_THORN,
+    // --- Offensive Effects ---
+    BLESS_ATTACK_SPEED,        // faster attacks
+    BLESS_ACCURACY_BOOST,      // better chance to hit
+    BLESS_ELEMENTAL_FIRE,      // adds fire damage
+    BLESS_ELEMENTAL_ICE,       // adds ice damage
+    BLESS_ELEMENTAL_POISON,    // adds poison damage
+    BLESS_ARMOR_PENETRATION,   // ignores part of enemy defense
+
+    // --- Defensive Effects ---
+    BLESS_SHIELD,              // adds shield value
+    BLESS_DODGE_BOOST,         // increases dodge chance
+    BLESS_DAMAGE_REDUCTION,    // reduces incoming damage
+    BLESS_REFLECT_DAMAGE,      // reflects damage back to attacker
+    BLESS_RESISTANCE_FIRE,
+    BLESS_RESISTANCE_ICE,
+    BLESS_RESISTANCE_POISON,
+    BLESS_RESISTANCE_STUN,
+    BLESS_RESISTANCE_SILENCE,
+
+    // --- Recovery & Sustain ---
+    BLESS_REGEN_HP,            // passive HP regen
+    BLESS_HEAL_BOOST,          // increases healing received
+    BLESS_LIFESTEAL,           // heals from damage dealt
+
+    // --- Utility / Unique Effects ---
+    BLESS_THORN,               // deals damage when hit
+    BLESS_LUCK_BOOST,          // improves crit/loot rolls
+    BLESS_INVULNERABILITY,     // temporary immunity
+    BLESS_HASTE,               // temporary speed buff
+    BLESS_SLOW,                // applies slow to enemies
+    BLESS_SUMMON,              // summon minions or allies
+    BLESS_ULTIMATE,            // unlocks ultimate skill (Boss ability)
 } BlessingEffectType;
 
 //Bless Char
