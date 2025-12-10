@@ -18,6 +18,7 @@ typedef struct {
 
 typedef struct {
     // --- Defensive Attributes ---
+    int defense = 0;
     int defenseBoost = 0;       // Extra defense points
     int damageReduction = 0;    // Flat or % reduction of incoming damage
     int blockRate = 0;          // Chance to block attacks
@@ -34,6 +35,7 @@ typedef struct {
     int resistanceEffect = 5;   // General resistance to debuffs/status effects
 
     // --- HP & Recovery ---
+    int hp = 0;
     int regen = 0;              // HP regeneration per turn/second
     int regenBoost = 0;         // Boost to healing/regen effects
     int hpBoost = 0;            // Bonus max HP
@@ -59,6 +61,7 @@ typedef struct {
     int elementalPoison = 0;    // Poison + attack reduction
 
     // --- Offensive Attributes ---
+    int attack = 0;
     int damageBoost = 0;        // Flat/percentage damage increase
     int critChance = 0;         // Chance of critical hit
     int critDamage = 50;         // Extra damage multiplier on crit
