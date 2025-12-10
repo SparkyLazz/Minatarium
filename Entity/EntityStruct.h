@@ -5,8 +5,6 @@ typedef struct {
     Character base;         // Inherit base stats
     int experience;         // EXP reward
     int dropRate;           // Loot chance
-    int aggression;         // AI behavior
-    int attackPattern;      // Defines attack style
 } Enemy;
 
 typedef struct {
