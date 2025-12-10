@@ -3,8 +3,8 @@
 #include "../Status/Status.h"
 #include "../Blessing/Blessing.h"
 
-#define MAX_ENEMY_STATUS 100
-#define MAX_ENEMY_BLESSINGS 100
+#define MAX_ENEMY_STATUS 7
+#define MAX_ENEMY_BLESSINGS 7
 
 typedef struct {
 
@@ -23,6 +23,8 @@ typedef struct {
     // Enemy Blessings / Traits
     Blessing currentBlessing[MAX_ENEMY_BLESSINGS];
     int blessingCount;
+
+    int dropRate;       // Chance to drop loot
 
 } Enemy;
 
