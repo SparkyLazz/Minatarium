@@ -1,8 +1,17 @@
 #ifndef BLESSING_H
 #define BLESSING_H
+
 #include "../Status/Status.h"
 
-//Blessing Rareness
+// ======================================
+//  CONFIG
+// ======================================
+#define MAX_BLESSING_EFFECTS   4
+#define MAX_BLESSING_STATUSES  3
+
+// ======================================
+//  RARITY
+// ======================================
 typedef enum {
     RARITY_COMMON,
     RARITY_RARE,
@@ -10,75 +19,108 @@ typedef enum {
     RARITY_LEGENDARY
 } BlessingRarity;
 
-//Bless Effect Type
+// ======================================
+//  EFFECT TYPES
+//  Direct stat modifiers
+// ======================================
 typedef enum {
-    // --- Common Effects ---
-    BLESS_DAMAGE_BOOST,
-    BLESS_HP_BOOST,
-    BLESS_DEFEND_BOOST,
-    BLESS_CRIT_DAMAGE_BOOST,
-    BLESS_CRIT_CHANCE_BOOST,
 
-    // --- Offensive Effects ---
-    BLESS_ATTACK_SPEED,        // faster attacks
-    BLESS_ACCURACY_BOOST,      // better chance to hit
-    BLESS_ELEMENTAL_FIRE,      // adds fire damage
-    BLESS_ELEMENTAL_ICE,       // adds ice damage
-    BLESS_ELEMENTAL_POISON,    // adds poison damage
-    BLESS_ARMOR_PENETRATION,   // ignores part of enemy defense
+    // --- Offensive ---
+    BEF_DAMAGE_BOOST,
+    BEF_CRIT_CHANCE,
+    BEF_CRIT_DAMAGE,
+    BEF_ARMOR_PEN,
+    BEF_ACCURACY,
 
-    // --- Defensive Effects ---
-    BLESS_SHIELD,              // adds shield value
-    BLESS_DODGE_BOOST,         // increases dodge chance
-    BLESS_DAMAGE_REDUCTION,    // reduces incoming damage
-    BLESS_REFLECT_DAMAGE,      // reflects damage back to attacker
-    BLESS_RESISTANCE_FIRE,
-    BLESS_RESISTANCE_ICE,
-    BLESS_RESISTANCE_POISON,
-    BLESS_RESISTANCE_STUN,
-    BLESS_RESISTANCE_SILENCE,
+    // --- Elemental Offense ---
+    BEF_FIRE_DAMAGE,
+    BEF_ICE_DAMAGE,
+    BEF_POISON_DAMAGE,
 
-    // --- Recovery & Sustain ---
-    BLESS_REGEN_HP,            // passive HP regen
-    BLESS_HEAL_BOOST,          // increases healing received
-    BLESS_LIFESTEAL,           // heals from damage dealt
+    // --- Defensive ---
+    BEF_MAX_HP,
+    BEF_DEFENSE,
+    BEF_DAMAGE_REDUCTION,
+    BEF_DODGE,
+    BEF_SHIELD,
+    BEF_REFLECT,
 
-    // --- Utility / Unique Effects ---
-    BLESS_THORN,               // deals damage when hit
-    BLESS_LUCK_BOOST,          // improves crit/loot rolls
-    BLESS_INVULNERABILITY,     // temporary immunity
-    BLESS_HASTE,               // temporary speed buff
-    BLESS_SLOW,                // applies slow to enemies
-    BLESS_SUMMON,              // summon minions or allies
-    BLESS_ULTIMATE,            // unlocks ultimate skill (Boss ability)
+    // --- Elemental Resistance ---
+    BEF_FIRE_RES,
+    BEF_ICE_RES,
+    BEF_POISON_RES,
 
-    // Legendary (Skill-giving)
-    BLESS_GRANT_SKILL
+    // --- Status Resistance ---
+    BEF_RES_STUN,
+    BEF_RES_SILENCE,
+
+    // --- Sustain ---
+    BEF_REGEN,
+    BEF_LIFESTEAL,
+    BEF_HEAL_BOOST,
+
+    // --- Unique ---
+    BEF_THORN,
+    BEF_LUCK,
+    BEF_INVULNERABLE,
+
+    // --- Legendary Skill ---
+    BEF_GRANT_SKILL
+
 } BlessingEffectType;
 
-//Bless Char
+// ======================================
+//  BLESSING EFFECT
+//  - Infinite stack scaling
+//  - Used for stat bonuses
+// ======================================
 typedef struct {
-    char Name[100];
-    char Description[128];
-    BlessingEffectType Type;
-    BlessingRarity Rarity;
+    BlessingEffectType type;
+    float baseValue;        // stat bonus per stack
+    long long stacks;       // infinite scaling (roguelike)
+} BlessingEffect;
 
-    //Effect Scaling
-    float valueEffect;
-    int maxStackEffect;
-    int currentStackEffect;
+// ======================================
+//  ON-HIT STATUS EFFECT
+//  - Blessing stacks multiply DoT magnitude
+//  - Example: magnitude=5, stacks=4 → 20 DoT dmg
+// ======================================
+typedef struct {
+    StatusType type;        // Burn, Poison, Freeze, etc.
+    float magnitude;        // base DoT or debuff amount
+    int chance;             // % to apply
+} BlessingStatus;
 
-    StatusType inflictedStatus;
-    int applyOnHit; // 0 = no, 1 = try to apply when player hits
-    float valueStatus;
-    int maxStackStatus;
-    int currentStackStatus;
+// ======================================
+//  LEGENDARY SKILL
+// ======================================
+typedef struct {
+    int enabled;
+    char name[64];
+    int cooldown;
+} BlessingSkill;
 
-    // LEGENDARY ONLY → gives special action
-    int grantsSkill;
-    char SkillName[100];
-    int SkillCooldown;
-    int SkillCurrentCD;
+// ======================================
+//  BLESSING STRUCT
+// ======================================
+typedef struct {
+
+    int id;
+    char name[64];
+    char description[128];
+    BlessingRarity rarity;
+
+    // --- Stat effects ---
+    BlessingEffect effects[MAX_BLESSING_EFFECTS];
+    int effectCount;
+
+    // --- On-hit effects (DoT, Debuffs, CC) ---
+    BlessingStatus statuses[MAX_BLESSING_STATUSES];
+    int statusCount;
+
+    // --- Legendary skill ---
+    BlessingSkill skill;
 
 } Blessing;
+
 #endif

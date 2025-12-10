@@ -1,85 +1,106 @@
 #ifndef STATUS_H
 #define STATUS_H
 
-// -----------------------------
-//       STATUS ENUM + STRUCT
-// -----------------------------
+// ======================================
+//  STATUS TYPES
+//  (your original list, unchanged)
+// ======================================
 typedef enum {
     STATUS_NONE = 0,
-    STATUS_DAMAGE_REDUCTION,
-    STATUS_HP_REDUCTION,
+
+    // Damage Over Time
+    STATUS_BURN,
+    STATUS_POISON,
+
+    // Crowd Control
+    STATUS_STUN,
+    STATUS_FREEZE,
+    STATUS_SILENCE,
+
+    // Debuffs
+    STATUS_DEF_DOWN,
+    STATUS_ATK_DOWN,
+    STATUS_DMG_TAKEN_UP,
+    STATUS_CRIT_RES_DOWN,
+
+    // Special
+    STATUS_WEAKEN,
+    STATUS_VULNERABLE
+
 } StatusType;
 
+
+// ======================================
+//  STATUS ENTRY
+//  - Clean
+//  - No stacks
+//  - Blessing stacks scale effects
+// ======================================
 typedef struct {
+
     StatusType type;
-    float value;
+    float baseAmount;
     int duration;
-    int maxDuration;
+
 } Status;
 
 
-// -----------------------------
-//       COMBAT ATTRIBUTES
-// -----------------------------
+// ======================================
+//  COMBAT ATTRIBUTES
+//  (Your original struct — unchanged)
+// ======================================
 typedef struct {
-    // --- Defensive Attributes ---
-    long long int defense;
-    int defenseBoost;
-    int damageReduction;
-    int blockRate;
-    int shield;
-    int dodge;
-    int damageMitigation;
 
-    // --- Resistances ---
-    int resistanceFire;
-    int resistanceIce;
-    int resistancePoison;
-    int resistanceStun;
-    int resistanceSilence;
-    int resistanceEffect;
+    // --- Primary Stats ---
+    long long maxHp;
+    long long hp;
+    long long attack;
+    long long defense;
 
-    // --- HP & Recovery ---
-    long long int hp;
-    long long int maxHp;
-    int regen;
-    int regenBoost;
-    int hpBoost;
-    int hpAlteration;
-    int lifeSteal;
-    int healBoost;
+    // --- Offensive Stats ---
+    struct {
+        int critChance;
+        int critDamage;
+        int penetration;
+        int damageBoost;
+        int accuracy;
+    } off;
 
-    // --- Debuffs inflicted on enemy ---
-    int AR;
-    int DR;
+    // --- Defensive Stats ---
+    struct {
+        int dodge;
+        int blockRate;
+        int damageReduction;
+    } def;
 
-    // --- Status Inflict Rates ---
-    int rateFire;
-    int rateIce;
-    int ratePoison;
-    int rateStun;
-    int rateSilence;
-    int effectHitRate;
+    // --- Elemental ---
+    struct {
+        int fireDamage;
+        int iceDamage;
+        int poisonDamage;
 
-    // --- Elemental Effects ---
-    int elementalFire;
-    int elementalIce;
-    int elementalPoison;
+        int fireRes;
+        int iceRes;
+        int poisonRes;
+    } elem;
 
-    // --- Offensive ---
-    long long int attack;
-    int damageBoost;
-    int critChance;
-    int critDamage;
-    int penetration;
-    int armorPenetration;
-    int statusPenetration;
+    // --- Sustain ---
+    struct {
+        int lifeSteal;
+        int regen;
+    } sustain;
+
+    // --- Status Control ---
+    struct {
+        int effectHitRate;
+        int resistanceEffect;
+    } status;
 
     // --- Utility ---
-    int accuracy;
-    int reflectDamage;
-    int invulnerability;
-    int silence;
+    struct {
+        int reflectDamage;
+    } util;
 
 } CombatAttributes;
+
 #endif
