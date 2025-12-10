@@ -21,4 +21,6 @@ typedef struct {
     int blessingCount;
 
 } Player;
+
+Player CreateDefaultPlayer();
 #endif
