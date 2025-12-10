@@ -12,6 +12,7 @@ typedef struct {
     int HP;
     int Attack;
     int Defense;
+    int level;
 
     //Player Status
     Status currentStatus[MAX_PLAYER_STATUS];
