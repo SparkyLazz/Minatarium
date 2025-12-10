@@ -12,7 +12,6 @@ typedef struct {
 
     //Player Attribute
     CombatAttributes attributes;
-
     //Player Status
     Status currentStatus[MAX_PLAYER_STATUS];
     int statusCount;
@@ -22,5 +21,4 @@ typedef struct {
     int blessingCount;
 
 } Player;
-
 #endif

@@ -16,9 +16,9 @@ void EnterDungeon()
 
     printf("==================== Player Stat ==================\n");
     printf("Your Name : %s\n", player.Name);
-    printf("HP        : %d\n", player.HP);
-    printf("Attack    : %d\n", player.Attack);
-    printf("Defense   : %d\n", player.Defense);
+    printf("HP        : %lld\n", player.attributes.hp);
+    printf("Attack    : %lld\n", player.attributes.attack);
+    printf("Defense   : %lld\n", player.attributes.defense);
     printf("===================================================\n");
     printf("Starting Dungeon ...\n");
 
