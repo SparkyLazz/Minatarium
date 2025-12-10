@@ -8,4 +8,5 @@ add_executable(Minatarium
         Entity/Player.h
         Blessing/Blessing.h
         Blessing/BlessingDatabase.c
-        Status/Status.h)
+        Status/Status.h
+)
