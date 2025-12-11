@@ -9,6 +9,9 @@
 #define MAX_BLESSING_EFFECTS   4
 #define MAX_BLESSING_STATUSES  3
 
+struct Characters;
+typedef struct Characters Characters;
+
 // ======================================
 //  RARITY
 // ======================================
@@ -96,7 +99,7 @@ typedef struct {
 // ======================================
 typedef struct {
     char name[64];
-    void (*effect)(Characters* user, Characters* target);
+    void (*effect)(Characters* character, Characters* targetCharacter);
     int cooldown;
     int currentCooldown;
 } BlessingSkill;

@@ -10,4 +10,5 @@ add_executable(Minatarium
         Blessing/BlessingData.c
         Entity/Characters.h
         Utils/PanelUtils.c
+        Utils/PanelUtils.h
 )
