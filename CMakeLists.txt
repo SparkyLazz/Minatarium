@@ -11,4 +11,5 @@ add_executable(Minatarium
         Entity/Player.c
         Entity/Enemy.h
         Entity/Enemy.c
+        Blessing/BlessingData.c
 )
