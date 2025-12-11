@@ -2,7 +2,7 @@
 #define BLESSING_H
 
 #include "../Status/Status.h"
-
+#include "../Entity/Characters.h"
 // ======================================
 //  CONFIG
 // ======================================
@@ -95,9 +95,10 @@ typedef struct {
 //  LEGENDARY SKILL
 // ======================================
 typedef struct {
-    int enabled;
     char name[64];
+    void (*effect)(Characters* user, Characters* target);
     int cooldown;
+    int currentCooldown;
 } BlessingSkill;
 
 // ======================================

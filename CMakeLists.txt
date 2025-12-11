@@ -5,11 +5,9 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(Minatarium
         main.c
-        Entity/Player.h
         Blessing/Blessing.h
         Status/Status.h
-        Entity/Player.c
-        Entity/Enemy.h
-        Entity/Enemy.c
         Blessing/BlessingData.c
+        Entity/Characters.h
+        Utils/PanelUtils.c
 )
