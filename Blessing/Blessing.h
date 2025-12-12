@@ -2,148 +2,73 @@
 #define BLESSING_H
 
 #include "../Status/Status.h"
-// ======================================
-//  CONFIG
-// ======================================
-#define MAX_BLESSING_EFFECTS   4
-#define MAX_BLESSING_STATUSES  3
-typedef struct Characters CharacterSkill;
-// ======================================
+//=====================================
 //  RARITY
-// ======================================
+//=====================================
 typedef enum {
     RARITY_COMMON,
     RARITY_RARE,
     RARITY_EPIC,
-    RARITY_LEGENDARY
+    RARITY_LEGENDARY,
 } BlessingRarity;
 
-// ======================================
-//  EFFECT TYPES
-//  Direct stat modifiers
-// ======================================
+//=====================================
+//  EFFECT TYPE
+//=====================================
 typedef enum {
+    DAMAGE_BOOST,
+    CRITICAL_CHANGE,
+    CRITICAL_DAMAGE,
+    ARMOR_PENETRATION,
+    ACCURACY_BOOST,
 
-    // --- Offensive ---
-    BEF_DAMAGE_BOOST,
-    BEF_CRIT_CHANCE,
-    BEF_CRIT_DAMAGE,
-    BEF_ARMOR_PEN,
-    BEF_ACCURACY,
+    FIRE_DAMAGE,
+    ICE_DAMAGE,
+    POISON_DAMAGE,
 
-    // --- Elemental Offense ---
-    BEF_FIRE_DAMAGE,
-    BEF_ICE_DAMAGE,
-    BEF_POISON_DAMAGE,
+    HP_BOOST,
+    DEFENSE_BOOST,
+    SHIELD_BOOST,
 
-    // --- Defensive ---
-    BEF_MAX_HP,
-    BEF_DEFENSE,
-    BEF_DAMAGE_REDUCTION,
-    BEF_DODGE,
-    BEF_SHIELD,
-    BEF_REFLECT,
+    REGEN,
+    LIFESTEAL,
+    REGEN_BOOST,
 
-    // --- Elemental Resistance ---
-    BEF_FIRE_RES,
-    BEF_ICE_RES,
-    BEF_POISON_RES,
-
-    // --- Status Resistance ---
-    BEF_RES_STUN,
-    BEF_RES_SILENCE,
-
-    // --- Sustain ---
-    BEF_REGEN,
-    BEF_LIFESTEAL,
-    BEF_HEAL_BOOST,
-
-    // --- Unique ---
-    BEF_THORN,
-    BEF_LUCK,
-    BEF_INVULNERABLE,
-
-    // --- Legendary Skill ---
-    BEF_GRANT_SKILL
+    THORN,
+    LUCK,
+    INVULNERABLE
 
 } BlessingEffectType;
 
-// ======================================
+//=====================================
 //  BLESSING EFFECT
-//  - Infinite stack scaling
-//  - Used for stat bonuses
-// ======================================
+//=====================================
 typedef struct {
-    BlessingEffectType type;
-    float baseValue;        // stat bonus per stack
-    long long stacks;       // infinite scaling (roguelike)
+    BlessingRarity rarity;
+    float baseValue;        //0.2 => 20%
+    long long int stacks;   //Infinity Stacks
 } BlessingEffect;
 
-// ======================================
-//  ON-HIT STATUS EFFECT
-//  - Blessing stacks multiply DoT magnitude
-//  - Example: magnitude=5, stacks=4 → 20 DoT dmg
-// ======================================
+//=====================================
+//  BLESSING DOT
+//=====================================
 typedef struct {
-    StatusType type;        // Burn, Poison, Freeze, etc.
-    float magnitude;        // base DoT or debuff amount
-    int chance;             // % to apply
-} BlessingStatus;
+    StatusType type;
+    float magnitude;
+    int change;
+} BlessingDot;
 
-// ======================================
-//  LEGENDARY SKILL
-// ======================================
 typedef struct {
-    char name[64];
-    void (*effect)(CharacterSkill* character, CharacterSkill* targetCharacter);
-    int cooldown;
-    int currentCooldown;
-} BlessingSkill;
-
-// ======================================
-//  BLESSING STRUCT
-// ======================================
-typedef struct {
-
     int id;
     char name[64];
     char description[128];
     BlessingRarity rarity;
 
-    // --- Stat effects ---
-    BlessingEffect effects[MAX_BLESSING_EFFECTS];
-    int effectCount;
+    BlessingEffect effects[4];
+    int effectsCount;
 
-    // --- On-hit effects (DoT, Debuffs, CC) ---
-    BlessingStatus statuses[MAX_BLESSING_STATUSES];
-    int statusCount;
-
-    // --- Legendary skill ---
-    BlessingSkill skill;
+    BlessingDot dots[4];
+    int dotsCount;
 
 } Blessing;
-
-extern Blessing warrior_strength;
-extern Blessing guardian_shield;
-extern Blessing swift_footwork;
-extern Blessing minor_regen;
-extern Blessing lucky_strike;
-extern Blessing flame_touch;
-extern Blessing frost_bite;
-extern Blessing venom_coating;
-extern Blessing iron_will;
-extern Blessing beginner_fortune;
-
-// ======================================
-//  Blessing collection helpers
-//  (implemented in BlessingData.c to avoid a separate database module)
-// ======================================
-
-// Initialize internal blessing registry (id/name/rarity). Safe to call multiple times.
-void blessing_init_registry();
-
-// Collect pointers to blessings of a given rarity into 'out' (capacity 'cap').
-// Returns the number of pointers written. Calls blessing_init_registry() on first use.
-int blessing_collect_by_rarity(BlessingRarity r, const Blessing* out[], int cap);
-
 #endif

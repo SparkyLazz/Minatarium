@@ -9,7 +9,7 @@ add_executable(Minatarium
         Status/Status.h
         Blessing/BlessingData.c
         Entity/Characters.h
-        Utils/PanelUtils.c
+        Utils/PanelUtil.c
         Utils/PanelUtils.h
         Entity/Enemy.c
         Entity/EnemyData.h
@@ -18,4 +18,12 @@ add_executable(Minatarium
         Entity/Player.c
         Game/Combat.c
         Game/Combat.h
+        Blessing/Blessing.h
+        Status/Status.h
+        Characters/Character.h
+        Utils/Utils.h
+        Utils/PanelUtil.c
+        Characters/CharacterUtil.c
+        Utils/PrintUtils.c
+        Example/Entity/CharacterUtils.c
 )

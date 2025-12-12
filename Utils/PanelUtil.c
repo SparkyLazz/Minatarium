@@ -1,8 +1,8 @@
-#include <stdio.h>
 #include <conio.h>
-#include <windows.h>
-#include "PanelUtils.h"
+#include <stdio.h>
+#include <stdlib.h>
 
+#include "Utils.h"
 void showTabPanel(Tab tabs[], const int tabCount, void* data) {
     int activeTab = 0;
     int running = 1;
@@ -22,7 +22,7 @@ void showTabPanel(Tab tabs[], const int tabCount, void* data) {
         if(tabs[activeTab].renderContent)
             tabs[activeTab].renderContent(data);
         printf("===================================================\n");
-        printf("Use arrow keys <- -> to switch tabs. Press ESC to exit.\n");
+        printf("Use arrow keys <- -> to switch tabs. Press ESC to continue.\n");
 
         // Handle input
         int key = _getch();
