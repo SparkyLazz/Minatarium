@@ -27,7 +27,7 @@ void showTabPanel(Tab tabs[], const int tabCount, void* data) {
         if(tabs[activeTab].renderContent)
             tabs[activeTab].renderContent(data);
         printf("===================================================\n");
-        printf("Use arrow keys ← → to switch tabs. Press ESC to exit.\n");
+        printf("Use arrow keys <- -> to switch tabs. Press ESC to exit.\n");
 
         // Handle input
         int key = _getch();

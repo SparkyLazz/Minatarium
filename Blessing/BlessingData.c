@@ -1,12 +1,14 @@
 #include "Blessing.h"
+
+// 1. Warrior's Strength
 Blessing warrior_strength = {
     .id = 1,
     .name = "Warrior's Strength",
     .description = "Basic combat prowess",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_DAMAGE_BOOST, 2.0f, 1},
-        {BEF_MAX_HP, 10.0f, 1}
+        { BEF_DAMAGE_BOOST, 2.0f, 1 },
+        { BEF_MAX_HP,       10.0f, 1 }
     },
     .effectCount = 2,
     .statusCount = 0
@@ -19,8 +21,8 @@ Blessing guardian_shield = {
     .description = "Enhanced defensive capabilities",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_DEFENSE, 3.0f, 1},
-        {BEF_SHIELD, 5.0f, 1}
+        { BEF_DEFENSE, 3.0f, 1 },
+        { BEF_SHIELD,  5.0f, 1 }
     },
     .effectCount = 2,
     .statusCount = 0
@@ -33,8 +35,8 @@ Blessing swift_footwork = {
     .description = "Increased evasion",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_DODGE, 5.0f, 1},
-        {BEF_ACCURACY, 3.0f, 1}
+        { BEF_DODGE,    5.0f, 1 },
+        { BEF_ACCURACY, 3.0f, 1 }
     },
     .effectCount = 2,
     .statusCount = 0
@@ -47,7 +49,7 @@ Blessing minor_regen = {
     .description = "Slowly restore health",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_REGEN, 2.0f, 1}
+        { BEF_REGEN, 2.0f, 1 }
     },
     .effectCount = 1,
     .statusCount = 0
@@ -60,8 +62,8 @@ Blessing lucky_strike = {
     .description = "Chance favors the bold",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_CRIT_CHANCE, 3.0f, 1},
-        {BEF_LUCK, 2.0f, 1}
+        { BEF_CRIT_CHANCE, 3.0f, 1 },
+        { BEF_LUCK,        2.0f, 1 }
     },
     .effectCount = 2,
     .statusCount = 0
@@ -74,11 +76,11 @@ Blessing flame_touch = {
     .description = "Attacks deal minor fire damage",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_FIRE_DAMAGE, 3.0f, 1}
+        { BEF_FIRE_DAMAGE, 3.0f, 1 }
     },
     .effectCount = 1,
     .statuses = {
-        {STATUS_BURN, 2.0f, 15}
+        { STATUS_BURN, 2.0f, 15 }
     },
     .statusCount = 1
 };
@@ -90,11 +92,11 @@ Blessing frost_bite = {
     .description = "Chilling attacks",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_ICE_DAMAGE, 3.0f, 1}
+        { BEF_ICE_DAMAGE, 3.0f, 1 }
     },
     .effectCount = 1,
     .statuses = {
-        {STATUS_FREEZE, 5.0f, 20}
+        { STATUS_FREEZE, 5.0f, 20 }
     },
     .statusCount = 1
 };
@@ -106,11 +108,11 @@ Blessing venom_coating = {
     .description = "Poison your enemies",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_POISON_DAMAGE, 2.0f, 1}
+        { BEF_POISON_DAMAGE, 2.0f, 1 }
     },
     .effectCount = 1,
     .statuses = {
-        {STATUS_POISON, 3.0f, 25}
+        { STATUS_POISON, 3.0f, 25 }
     },
     .statusCount = 1
 };
@@ -122,8 +124,8 @@ Blessing iron_will = {
     .description = "Resist mental effects",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_RES_STUN, 10.0f, 1},
-        {BEF_RES_SILENCE, 10.0f, 1}
+        { BEF_RES_STUN,    10.0f, 1 },
+        { BEF_RES_SILENCE, 10.0f, 1 }
     },
     .effectCount = 2,
     .statusCount = 0
@@ -136,9 +138,9 @@ Blessing beginner_fortune = {
     .description = "A bit of everything",
     .rarity = RARITY_COMMON,
     .effects = {
-        {BEF_DAMAGE_BOOST, 1.0f, 1},
-        {BEF_DEFENSE, 2.0f, 1},
-        {BEF_MAX_HP, 5.0f, 1}
+        { BEF_DAMAGE_BOOST, 1.0f, 1 },
+        { BEF_DEFENSE,      2.0f, 1 },
+        { BEF_MAX_HP,       5.0f, 1 }
     },
     .effectCount = 3,
     .statusCount = 0

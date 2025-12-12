@@ -20,15 +20,22 @@ typedef struct Characters {
     CharacterType type;
     CombatAttributes attributes;
 
-    Blessing currentBlessing[MAX_BLESSING];
+    Blessing* currentBlessing[MAX_BLESSING];
     int blessingCount;
 
-    Status currentStatus[MAX_STATUS];
+    Status* currentStatus[MAX_STATUS];
     int statusCount;
 
-    BlessingSkill currentSkill[MAX_SKILLS];
+    BlessingSkill* currentSkill[MAX_SKILLS];
     int skillCount;
 
 } Characters;
+
+extern const Characters playerBluePrint;
+
+void renderBaseStats(void* data);
+void renderBlessingData(void* data);
+void renderStatusData(void* data);
+void showPlayerStats(Characters* player);
 
 #endif

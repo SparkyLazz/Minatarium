@@ -11,4 +11,7 @@ add_executable(Minatarium
         Entity/Characters.h
         Utils/PanelUtils.c
         Utils/PanelUtils.h
+        Entity/Enemy.c
+        Entity/CharacterUtils.c
+        Entity/Player.c
 )

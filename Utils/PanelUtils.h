@@ -8,6 +8,6 @@ typedef struct {
     void (*renderContent)(void* data);
 } Tab;
 
-void showTabPanel(Tab tabs[], const int tabCount, void* data);
+void showTabPanel(Tab tabs[], int tabCount, void* data);
 
 #endif

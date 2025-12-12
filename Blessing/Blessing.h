@@ -123,4 +123,15 @@ typedef struct {
 
 } Blessing;
 
+extern Blessing warrior_strength;
+extern Blessing guardian_shield;
+extern Blessing swift_footwork;
+extern Blessing minor_regen;
+extern Blessing lucky_strike;
+extern Blessing flame_touch;
+extern Blessing frost_bite;
+extern Blessing venom_coating;
+extern Blessing iron_will;
+extern Blessing beginner_fortune;
+
 #endif

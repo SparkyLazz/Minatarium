@@ -4,11 +4,13 @@
 #include "Entity/Characters.h"
 
 void StartGame() {
-    Characters player;
-    printf("==============================================");
+    Characters player = playerBluePrint;
+    printf("==============================================\n");
     printf("Starting with your name : ");
     scanf("%99s", player.name);
     system("cls");
+
+    showPlayerStats(&player);
 }
 
 int main() {
@@ -29,9 +31,7 @@ int main() {
     switch (choice) {
         case 1:
             system("cls");
-            printf("Starting game...\n");
-            // Call your game start function here
-            // e.g., EnterDungeon();
+            StartGame();
             break;
 
         case 2:
