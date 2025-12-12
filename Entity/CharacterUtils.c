@@ -1,6 +1,7 @@
 #include "Characters.h"
 #include "../Utils/PanelUtils.h"
 #include <stdio.h>
+#include <string.h>
 
 // Convert rarity enum to string
 const char* getRarityString(BlessingRarity rarity) {
@@ -65,57 +66,178 @@ const char* getStatusTypeString(StatusType type) {
     }
 }
 
+// Core computation available to the whole project
+void computeEffectiveAttributes(const Characters* c, CombatAttributes* out) {
+    if (!c || !out) return;
+    CombatAttributes eff = c->attributes; // start from base
+
+    for (int i = 0; i < c->blessingCount; ++i) {
+        const ActiveBlessing* ab = &c->currentBlessing[i];
+        const Blessing* b = ab->def;
+        if (b == NULL || ab->stacks <= 0) continue;
+        for (int j = 0; j < b->effectCount; ++j) {
+            const BlessingEffect* e = &b->effects[j];
+            float add = e->baseValue * (float)ab->stacks;
+            switch (e->type) {
+                case BEF_DAMAGE_BOOST:      eff.off.damageBoost     += (int)add; break;
+                case BEF_CRIT_CHANCE:       eff.off.critChance      += (int)add; break;
+                case BEF_CRIT_DAMAGE:       eff.off.critDamage      += (int)add; break;
+                case BEF_ARMOR_PEN:         eff.off.penetration     += (int)add; break;
+                case BEF_ACCURACY:          eff.off.accuracy        += (int)add; break;
+
+                case BEF_FIRE_DAMAGE:       eff.elem.fireDamage     += (int)add; break;
+                case BEF_ICE_DAMAGE:        eff.elem.iceDamage      += (int)add; break;
+                case BEF_POISON_DAMAGE:     eff.elem.poisonDamage   += (int)add; break;
+
+                case BEF_MAX_HP:            eff.maxHp               += (long long)add; break;
+                case BEF_DEFENSE:           eff.defense             += (long long)add; break;
+                case BEF_DAMAGE_REDUCTION:  eff.def.damageReduction += (int)add; break;
+                case BEF_DODGE:             eff.def.dodge           += (int)add; break;
+                case BEF_SHIELD:            /* no shield stat yet */ break;
+                case BEF_REFLECT:           eff.util.reflectDamage  += (int)add; break;
+
+                case BEF_FIRE_RES:          eff.elem.fireRes        += (int)add; break;
+                case BEF_ICE_RES:           eff.elem.iceRes         += (int)add; break;
+                case BEF_POISON_RES:        eff.elem.poisonRes      += (int)add; break;
+
+                case BEF_RES_STUN:
+                case BEF_RES_SILENCE:       eff.status.resistanceEffect += (int)add; break;
+
+                case BEF_REGEN:             eff.sustain.regen       += (int)add; break;
+                case BEF_LIFESTEAL:         eff.sustain.lifeSteal   += (int)add; break;
+                case BEF_HEAL_BOOST:        /* no heal boost stat yet */ break;
+
+                case BEF_THORN:             eff.util.reflectDamage  += (int)add; break;
+                case BEF_LUCK:              /* no luck stat yet */ break;
+                case BEF_INVULNERABLE:      /* unique handling elsewhere */ break;
+                case BEF_GRANT_SKILL:       /* handled via skills */ break;
+                default: break;
+            }
+        }
+    }
+    *out = eff;
+}
+
+int addBlessingStacks(Characters* c, const Blessing* b, long long stacks) {
+    if (!c || !b || stacks <= 0) return 0;
+    // if exists, increase stacks
+    for (int i = 0; i < c->blessingCount; ++i) {
+        if (c->currentBlessing[i].def && c->currentBlessing[i].def->id == b->id) {
+            c->currentBlessing[i].stacks += stacks;
+            return 1;
+        }
+    }
+    if (c->blessingCount >= MAX_BLESSING) return 0;
+    c->currentBlessing[c->blessingCount].def = b;
+    c->currentBlessing[c->blessingCount].stacks = stacks;
+    c->blessingCount++;
+    return 1;
+}
+
+int addBlessing(Characters* c, const Blessing* b) {
+    return addBlessingStacks(c, b, 1);
+}
+
+int removeBlessingById(Characters* c, int blessingId) {
+    if (!c) return 0;
+    for (int i = 0; i < c->blessingCount; ++i) {
+        if (c->currentBlessing[i].def && c->currentBlessing[i].def->id == blessingId) {
+            // shift left
+            for (int k = i + 1; k < c->blessingCount; ++k) {
+                c->currentBlessing[k - 1] = c->currentBlessing[k];
+            }
+            c->blessingCount--;
+            c->currentBlessing[c->blessingCount].def = NULL;
+            c->currentBlessing[c->blessingCount].stacks = 0;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void clearBlessings(Characters* c) {
+    if (!c) return;
+    for (int i = 0; i < c->blessingCount; ++i) {
+        c->currentBlessing[i].def = NULL;
+        c->currentBlessing[i].stacks = 0;
+    }
+    c->blessingCount = 0;
+}
+
 void renderBaseStats(void* data) {
     const Characters* c = (Characters*)data;
+
+    CombatAttributes eff;
+    computeEffectiveAttributes(c, &eff);
+
     printf(">> PRIMARY STATS\n");
-    printf("   HP               : %lld\n", c->attributes.hp);
-    printf("   Attack           : %lld\n", c->attributes.attack);
-    printf("   Defense          : %lld\n", c->attributes.defense);
+    printf("   HP               : %lld\n", eff.hp);
+    printf("   Attack           : %lld\n", eff.attack);
+    printf("   Defense          : %lld\n", eff.defense);
     printf("\n");
 
     printf(">> OFFENSIVE STATS\n");
-    printf("   Crit Chance      : %d\n",  c->attributes.off.critChance);
-    printf("   Crit Damage      : %d\n",  c->attributes.off.critDamage);
-    printf("   Penetration      : %d\n",  c->attributes.off.penetration);
-    printf("   Accuracy         : %d\n",  c->attributes.off.accuracy);
+    printf("   Crit Chance      : %d\n",  eff.off.critChance);
+    printf("   Crit Damage      : %d\n",  eff.off.critDamage);
+    printf("   Penetration      : %d\n",  eff.off.penetration);
+    printf("   Accuracy         : %d\n",  eff.off.accuracy);
+    printf("   Damage Boost     : %d\n",  eff.off.damageBoost);
     printf("\n");
 
     printf(">> DEFENSIVE STATS\n");
-    printf("   Dodge            : %d\n", c->attributes.def.dodge);
-    printf("   Damage Reduction : %d\n", c->attributes.def.damageReduction);
+    printf("   Dodge            : %d\n", eff.def.dodge);
+    printf("   Damage Reduction : %d\n", eff.def.damageReduction);
     printf("\n");
 
     printf(">> ELEMENTAL STATS\n");
-    printf("   Fire Damage      : %d\n", c->attributes.elem.fireDamage);
-    printf("   Fire Resistance  : %d\n", c->attributes.elem.fireRes);
-    printf("   Ice Damage       : %d\n", c->attributes.elem.iceDamage);
-    printf("   Ice Resistance   : %d\n", c->attributes.elem.iceRes);
-    printf("   Poison Damage    : %d\n", c->attributes.elem.poisonDamage);
-    printf("   Poison Resist    : %d\n", c->attributes.elem.poisonRes);
+    printf("   Fire Damage      : %d\n", eff.elem.fireDamage);
+    printf("   Fire Resistance  : %d\n", eff.elem.fireRes);
+    printf("   Ice Damage       : %d\n", eff.elem.iceDamage);
+    printf("   Ice Resistance   : %d\n", eff.elem.iceRes);
+    printf("   Poison Damage    : %d\n", eff.elem.poisonDamage);
+    printf("   Poison Resist    : %d\n", eff.elem.poisonRes);
     printf("\n");
 
     printf(">> CONTROL & UTILITY STATS\n");
-    printf("   Effect Hit Rate  : %d\n", c->attributes.status.effectHitRate);
-    printf("   Effect Resist    : %d\n", c->attributes.status.resistanceEffect);
-    printf("   Reflect Damage   : %d\n", c->attributes.util.reflectDamage);
+    printf("   Effect Hit Rate  : %d\n", eff.status.effectHitRate);
+    printf("   Effect Resist    : %d\n", eff.status.resistanceEffect);
+    printf("   Reflect Damage   : %d\n", eff.util.reflectDamage);
 }
 
 void renderBlessingData(void* data) {
     const Characters* c = (Characters*)data;
     for (int i = 0; i < c->blessingCount; i++) {
-        printf("Name : %s", c->currentBlessing[i].name);
-        printf("   Rarity : %s", getRarityString(c->currentBlessing[i].rarity));
-        printf("   Blessing Effect [%d] : ", c->currentBlessing[i].effectCount);
-        for (int j = 0; j < c->currentBlessing[i].effectCount; j++) {
-            printf("      [%d] %s : %f", j, getBlessingEffectString(c->currentBlessing[i].effects[j].type), c->currentBlessing[i].effects[j].baseValue);
-            printf("      Stack : %lld", c->currentBlessing[i].effects[j].stacks);
-
+        const ActiveBlessing* ab = &c->currentBlessing[i];
+        const Blessing* b = ab->def;
+        if (b == NULL) continue;
+        printf("- %s (Stacks: %lld)\n", b->name, ab->stacks);
+        printf("   Rarity : %s\n", getRarityString(b->rarity));
+        printf("   Effects (%d) :\n", b->effectCount);
+        for (int j = 0; j < b->effectCount; j++) {
+            const BlessingEffect* e = &b->effects[j];
+            printf("      [%d] %s : base %.2f  => total %.2f\n", j, getBlessingEffectString(e->type), e->baseValue, e->baseValue * (float)ab->stacks);
+        }
+        if (b->statusCount > 0) {
+            printf("   On-Hit Statuses (%d) :\n", b->statusCount);
+            for (int k = 0; k < b->statusCount; ++k) {
+                const BlessingStatus* s = &b->statuses[k];
+                printf("      [%d] %s  Mag: %.2f  Chance: %d%%\n", k, getStatusTypeString(s->type), s->magnitude, s->chance);
+            }
         }
     }
 }
 
 void renderStatusData(void* data) {
-
+    const Characters* c = (Characters*)data;
+    printf(">> ACTIVE STATUSES\n");
+    if (c->statusCount == 0) {
+        printf("   (none)\n");
+        return;
+    }
+    for (int i = 0; i < c->statusCount; ++i) {
+        const ActiveStatus* s = &c->currentStatus[i];
+        printf("   - %s | Amount: %.2f | Remaining: %d\n", getStatusTypeString(s->type), s->amount, s->remaining);
+    }
 }
 
 void showPlayerStats(Characters* player) {

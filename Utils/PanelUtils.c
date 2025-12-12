@@ -1,12 +1,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <windows.h>
-#define MAX_TABS 10
-
-typedef struct {
-    char title[64];
-    void (*renderContent)(void* data);
-}Tab;
+#include "PanelUtils.h"
 
 void showTabPanel(Tab tabs[], const int tabCount, void* data) {
     int activeTab = 0;

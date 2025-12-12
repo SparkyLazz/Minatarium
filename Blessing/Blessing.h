@@ -134,4 +134,16 @@ extern Blessing venom_coating;
 extern Blessing iron_will;
 extern Blessing beginner_fortune;
 
+// ======================================
+//  Blessing collection helpers
+//  (implemented in BlessingData.c to avoid a separate database module)
+// ======================================
+
+// Initialize internal blessing registry (id/name/rarity). Safe to call multiple times.
+void blessing_init_registry();
+
+// Collect pointers to blessings of a given rarity into 'out' (capacity 'cap').
+// Returns the number of pointers written. Calls blessing_init_registry() on first use.
+int blessing_collect_by_rarity(BlessingRarity r, const Blessing* out[], int cap);
+
 #endif

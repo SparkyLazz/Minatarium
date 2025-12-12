@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "Utils/PanelUtils.h"
 #include "Entity/Characters.h"
+#include "Game/Combat.h"
 
 void StartGame() {
     Characters player = playerBluePrint;
@@ -11,6 +12,9 @@ void StartGame() {
     system("cls");
 
     showPlayerStats(&player);
+
+    // After viewing stats, begin the infinite roguelike run starting at floor 1
+    roguelike_start(&player);
 }
 
 int main() {
@@ -24,7 +28,8 @@ int main() {
     printf("\\__|     \\__|\\__|\\__|  \\__| \\_______|  \\____/  \\_______|\\__|      \\__| \\______/ \\__| \\__| \\__|\n\n");
     printf("[ 1 ] Start Game\n");
     printf("[ 2 ] Encyclopedia\n");
-    printf("[ 3 ] Quit\n");
+    printf("[ 3 ] Roguelike Demo (Endless Floors)\n");
+    printf("[ 4 ] Quit\n");
     printf("Your choice : ");
     int choice;
     scanf("%d", &choice);
@@ -41,6 +46,11 @@ int main() {
             break;
 
         case 3:
+            system("cls");
+            roguelike_demo();
+            break;
+
+        case 4:
             printf("Exiting game. Goodbye!\n");
             return 0; // Exit the program
 
