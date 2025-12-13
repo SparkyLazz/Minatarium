@@ -4,6 +4,6 @@
 //=====================================
 //  BLESSING GENERATOR
 //=====================================
-
+void BlessingWinningReward();
 
 #endif
