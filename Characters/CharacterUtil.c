@@ -19,9 +19,6 @@ Character playerBluePrint = {
         .criticalDamage = 80,
         .damageBoost = 0,
         .accuracy = 75,
-        .fireDamage = 0,
-        .iceDamage = 0,
-        .poisonDamage = 0,
         .fireResistance = 0,
         .iceResistance = 0,
         .poisonResistance = 0,
@@ -31,6 +28,45 @@ Character playerBluePrint = {
     .blessingCount = 0,
     .statusCount = 0,
 };
+
+void CharacterApplyDamage(Character* target, const long long rawDamage) {
+    long long finalDamage = rawDamage - target->attribute.defense;
+    if (finalDamage < 0) {
+        finalDamage = 0;
+    }
+
+    target->attribute.hp -= finalDamage;
+    if (target->attribute.hp < 0) {
+        target->attribute.hp = 0;
+    }
+}
+void CharacterAddBlessing(Character* target, const Blessing* blessing) {
+    for (int i = 0; i < target->blessingCount; i++) {
+        if (target->currentBlessing[i].id == blessing->id) {
+            target->currentBlessing[i].stacks += 1;
+            return;
+        }
+    }
+
+    if (target->blessingCount < 100) {
+        target->currentBlessing[target->blessingCount]= *blessing;
+        target->currentBlessing[target->blessingCount].stacks = 1;
+        target->blessingCount++;
+    }
+}
+void CharacterAddStatus(Character* character, const Status* status) {
+    for (int i = 0; i < character->statusCount; i++) {
+        if (character->currentStatus[i].type == status->type) {
+            character->currentStatus[i].duration += 1;
+            return;
+        }
+    }
+
+    if (character->statusCount < 100) {
+        character->currentStatus[character->statusCount] = *status;
+        character->statusCount++;
+    }
+}
 //=====================================
 //  CHARACTER RENDERER
 //=====================================
@@ -50,11 +86,6 @@ void CharacterStatsTab(void* data) {
     printf("\n");
 
     printColor(COL_BOLD, "Elemental Stats\n");
-    printf("   Fire Damage       : %d\n",  character->attribute.fireDamage);
-    printf("   Ice Damage        : %d\n",  character->attribute.iceDamage);
-    printf("   Poison Damage     : %d\n",  character->attribute.poisonDamage);
-    printf("\n");
-
     printf("   Fire Resistance   : %d\n",  character->attribute.fireResistance);
     printf("   Ice Resistance    : %d\n",  character->attribute.iceResistance);
     printf("   Poison Resistance : %d\n",  character->attribute.poisonResistance);
@@ -179,13 +210,6 @@ void CharacterBlessingTab(void* data) {
                        LABEL_WIDTH,
                        "Base Value",
                        character->currentBlessing[i].dots[j].DoT.baseAmount);
-                printf("        %-*s : ",
-                       LABEL_WIDTH,
-                       "Total Value");
-                BlessingTotalValueColor(
-                    character->currentBlessing[i].dots[j].DoT.baseAmount *
-                    (float)character->currentBlessing[i].stacks
-                );
                 printf("\n");
             }
         }

@@ -17,10 +17,6 @@ typedef struct{
     int damageBoost;
     int accuracy;
 
-    int fireDamage;
-    int iceDamage;
-    int poisonDamage;
-
     int fireResistance;
     int iceResistance;
     int poisonResistance;
@@ -58,6 +54,9 @@ typedef struct {
 //  CHARACTER PROPERTY
 //=====================================
 Character playerBluePrint;
+void CharacterApplyDamage(Character* target, long long );
+void CharacterAddBlessing(Character* target, const Blessing* blessing);
+void CharacterAddStatus(Character* character, const Status* status);
 
 //=====================================
 //  CHARACTER RENDERER

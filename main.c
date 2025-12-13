@@ -14,5 +14,6 @@ int main() {
     printColor(COL_BRIGHT_CYAN,  "[ 2 ] Encyclopedia\n");
     printColor(COL_BRIGHT_RED,   "[ 3 ] Quit\n");
     printColor(COL_WHITE, "Choose : ");
+
     return 0;
 }

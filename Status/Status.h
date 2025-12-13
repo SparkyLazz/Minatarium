@@ -17,7 +17,7 @@ typedef enum {
 //=====================================
 typedef struct {
     StatusType type;
-    float baseAmount;
+    float baseAmount; // * stacks
     int duration;
 } Status;
 

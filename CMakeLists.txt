@@ -11,4 +11,5 @@ add_executable(Minatarium
         Utils/PanelUtil.c
         Utils/PrintUtils.c
         main.c
+        Game/Game.h
 )
