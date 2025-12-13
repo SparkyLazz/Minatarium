@@ -193,3 +193,11 @@ void CharacterBlessingTab(void* data) {
         printf("\n");
     }
 }
+
+void CharacterRenderer(Character* character) {
+    Tab tabs[3] = {
+        {"Attribute Stat", CharacterStatsTab},
+        {"Blessing Stat", CharacterBlessingTab}
+    };
+    showTabPanel(tabs, 2, character);
+}
