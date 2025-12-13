@@ -44,17 +44,15 @@ typedef enum {
 //  BLESSING EFFECT
 //=====================================
 typedef struct {
-    BlessingRarity rarity;
+    BlessingEffectType type;
     float baseValue;        //0.2 => 20%
-    long long int stacks;   //Infinity Stacks
 } BlessingEffect;
 
 //=====================================
 //  BLESSING DOT
 //=====================================
 typedef struct {
-    StatusType type;
-    float magnitude;
+    Status DoT;
     int change;
 } BlessingDot;
 
@@ -62,7 +60,9 @@ typedef struct {
     int id;
     char name[64];
     char description[128];
+
     BlessingRarity rarity;
+    long long int stacks;
 
     BlessingEffect effects[4];
     int effectsCount;
