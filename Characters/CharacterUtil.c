@@ -4,6 +4,9 @@
 #include "../Utils/Utils.h"
 
 #define LABEL_WIDTH 14
+//=====================================
+//  CHARACTER PROPERTY
+//=====================================
 Character playerBluePrint = {
     .name = "",
     .type = PLAYER,
@@ -28,7 +31,9 @@ Character playerBluePrint = {
     .blessingCount = 0,
     .statusCount = 0,
 };
-
+//=====================================
+//  CHARACTER RENDERER
+//=====================================
 void CharacterStatsTab(void* data) {
     const Character* character = (Character*)data;
     printColor(COL_BOLD, "Primary Stats\n");
@@ -59,7 +64,6 @@ void CharacterStatsTab(void* data) {
     printf("   Life Steal        : %d\n",  character->attribute.lifeSteal);
     printf("   Regen             : %d\n",  character->attribute.regen);
 }
-
 void RarityColor(const BlessingRarity rarity) {
     switch (rarity) {
         case RARITY_COMMON:
@@ -75,7 +79,6 @@ void RarityColor(const BlessingRarity rarity) {
             printColor(COL_YELLOW, "Legendary");
     }
 }
-
 const char* BlessingEffectString(const BlessingEffectType e) {
     switch (e) {
         case DAMAGE_BOOST: return "Damage Boost";
@@ -97,7 +100,6 @@ const char* BlessingEffectString(const BlessingEffectType e) {
         default: return "None";
     }
 }
-
 const char* StatusEffectString(const BlessingDot status) {
     switch (status.DoT.type) {
         case BURN: return "Burn";
@@ -107,7 +109,6 @@ const char* StatusEffectString(const BlessingDot status) {
         default: return "None";
     }
 }
-
 void BlessingStackColor(const long long int stacks) {
     if (stacks <= 10)
         printColor(COL_WHITE, "%lld", stacks);
@@ -122,7 +123,6 @@ void BlessingStackColor(const long long int stacks) {
     else
         printColor(COL_BRIGHT_RED, "%lld", stacks);
 }
-
 void BlessingTotalValueColor(const float totalPercent) {
     if (totalPercent < 25.0f)
         printColor(COL_WHITE, "%.2f%%\n", totalPercent);
@@ -135,7 +135,6 @@ void BlessingTotalValueColor(const float totalPercent) {
     else
         printColor(COL_YELLOW, "%.2f%%\n", totalPercent);
 }
-
 void CharacterBlessingTab(void* data) {
     const Character* character = (Character*)data;
     for (int i = 0; i < character->blessingCount; i++) {
@@ -193,7 +192,6 @@ void CharacterBlessingTab(void* data) {
         printf("\n");
     }
 }
-
 void CharacterRenderer(Character* character) {
     Tab tabs[3] = {
         {"Attribute Stat", CharacterStatsTab},

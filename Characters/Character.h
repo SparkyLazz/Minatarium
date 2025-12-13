@@ -65,4 +65,8 @@ Character playerBluePrint;
 void CharacterStatsTab(void* data);
 void CharacterBlessingTab(void* data);
 void CharacterRenderer(Character* character);
+
+//=====================================
+//  CHARACTER GENERATOR
+//=====================================
 #endif
