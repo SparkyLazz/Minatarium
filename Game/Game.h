@@ -6,4 +6,8 @@
 //=====================================
 void BlessingWinningReward();
 void BlessingBossReward();
+
+//=====================================
+//  ENEMY MANAGER
+//=====================================
 #endif
