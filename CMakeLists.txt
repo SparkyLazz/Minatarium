@@ -12,4 +12,6 @@ add_executable(Minatarium
         Utils/PrintUtils.c
         main.c
         Game/Game.h
+        Blessing/BlessingData.c
+        Game/GameReward.c
 )

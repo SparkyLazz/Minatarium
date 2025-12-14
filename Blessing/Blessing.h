@@ -71,4 +71,14 @@ typedef struct {
     int dotsCount;
 
 } Blessing;
+
+//=====================================
+//  BLESSING DOT
+//=====================================
+typedef struct {
+    Blessing* blessings;
+    int count;
+} BlessingDatabase;
+
+BlessingDatabase* GetBlessingDatabase();
 #endif

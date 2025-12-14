@@ -2,8 +2,8 @@
 #define GAME_H
 
 //=====================================
-//  BLESSING GENERATOR
+//  BLESSING MANAGER
 //=====================================
 void BlessingWinningReward();
-
+void BlessingBossReward();
 #endif
