@@ -15,4 +15,5 @@ add_executable(Minatarium
         Blessing/BlessingData.c
         Game/GameReward.c
         Game/GameDamage.c
+        Game/GameLoop.c
 )

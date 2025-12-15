@@ -173,7 +173,7 @@ void CharacterBlessingTab(void* data) {
                    LABEL_WIDTH,
                    "Type",
                    BlessingEffectString(character->currentBlessing[i].effects[j].type));
-            printf("        %-*s : %.2f%%\n",
+            printf("        %-*s : %.2f\n",
                    LABEL_WIDTH,
                    "Base Value",
                    character->currentBlessing[i].effects[j].baseValue * 100.0f);

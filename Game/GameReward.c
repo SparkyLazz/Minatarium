@@ -129,28 +129,41 @@ void BlessingWinningReward(Character* player, const CharacterType enemyType) {
 
     while (choosing) {
         system("cls");
-        printColor(COL_BOLD, "=================BLESSING REWARD=================");
+        printColor(COL_BOLD, "╔════════════════════════════════════════════════════════════╗\n");
+        printColor(COL_BOLD, "║ ");
+        printColor(COL_CYAN, "Choose Your Blessing");
+        printf("                                     ");
+        printColor(COL_BOLD, "║\n");
+        printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n\n");
+
+        // Display all choices
+        for (int i = 0; i < 3; i++) {
+            DisplayBlessingChoice(choice[i], i + 1, i == selectedIndex);
+        }
+
+        printColor(COL_BRIGHT_BLACK, "Use UP/DOWN arrows to navigate, ENTER to select\n");
 
         int key = _getch();
         if (key == 224) {
             key = _getch();
-            if (key == 72) {
+            if (key == 72) { // Up
                 selectedIndex--;
                 if (selectedIndex < 0) selectedIndex = 2;
             }
-            else if (key == 80) {
+            else if (key == 80) { // Down
                 selectedIndex++;
                 if (selectedIndex > 2) selectedIndex = 0;
             }
         }
-        else if (key == 13) {
+        else if (key == 13) { // Enter
             choosing = 0;
         }
     }
+
     CharacterAddBlessing(player, choice[selectedIndex]);
     system("cls");
 
-    printColor(COL_GREEN, "You have obtained : ");
+    printColor(COL_GREEN, "You have obtained: ");
     printColor(COL_BOLD, "%s\n", choice[selectedIndex]->name);
     printf("\nPress any key to continue...");
     _getch();
@@ -168,7 +181,13 @@ void BlessingBossReward(Character* player, Blessing* LegendaryBlessing) {
     }
 
     system("cls");
-    printColor(COL_BOLD, "========LEGENDARY BLESSING REWARD======\n\n");
+    printColor(COL_BOLD, "╔════════════════════════════════════════════════════════════╗\n");
+    printColor(COL_BOLD, "║ ");
+    printColor(COL_YELLOW, "Legendary Blessing Reward");
+    printf("                            ");
+    printColor(COL_BOLD, "║\n");
+    printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n\n");
+
     if (!hasLegendary) {
         // No legendary yet, just add it
         printColor(COL_YELLOW, "You have obtained a Legendary Blessing!\n\n");
@@ -179,6 +198,7 @@ void BlessingBossReward(Character* player, Blessing* LegendaryBlessing) {
         _getch();
         return;
     }
+
     // Player has legendary, offer replacement
     printColor(COL_YELLOW, "You already have a Legendary Blessing!\n");
     printColor(COL_CYAN, "Legendary blessings cannot be stacked.\n\n");

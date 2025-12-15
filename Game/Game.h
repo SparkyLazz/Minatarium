@@ -30,4 +30,11 @@ void ProcessStatusEffects(Character* character);
 void ProcessRegeneration(Character* character);
 int IsIncapacitated(const Character* character);
 void ExecuteCombatTurn(Character* attacker, Character* defender);
+
+//=====================================
+//  GAME LOOP
+//=====================================
+void StartGame();
+void AddCombatLog(const char* message);
+void ClearCombatLog();
 #endif

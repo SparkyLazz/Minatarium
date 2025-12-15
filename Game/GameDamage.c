@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "Game.h"
 #include "../Characters/Character.h"
-#include "../Utils/Utils.h"
 //=====================================
 //  HELPER FUNCTIONS
 //=====================================
@@ -166,8 +165,11 @@ DamageResult CalculateDamage(Character* attacker, Character* defender) {
 //  APPLY DAMAGE TO TARGET
 //=====================================
 void ApplyDamageResult(Character* attacker, Character* defender, const DamageResult* result) {
+    char logMsg[256];
+
     if (result->didMiss) {
-        printColor(COL_YELLOW, "%s's attack missed!\n", attacker->name);
+        sprintf(logMsg, "%s's attack missed!", attacker->name);
+        AddCombatLog(logMsg);
         return;
     }
 
@@ -179,10 +181,13 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
 
     // Display damage info
     if (result->isCritical) {
-        printColor(COL_BRIGHT_RED, "CRITICAL HIT! ");
+        sprintf(logMsg, "CRIT! %s dealt %lld dmg to %s",
+                attacker->name, result->finalDamage, defender->name);
+    } else {
+        sprintf(logMsg, "%s dealt %lld damage to %s",
+                attacker->name, result->finalDamage, defender->name);
     }
-    printColor(COL_RED, "%s dealt %lld damage to %s!\n",
-               attacker->name, result->finalDamage, defender->name);
+    AddCombatLog(logMsg);
 
     // Apply lifesteal
     if (result->lifeStealAmount > 0) {
@@ -190,8 +195,9 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
         if (attacker->attribute.hp > attacker->attribute.maxHP) {
             attacker->attribute.hp = attacker->attribute.maxHP;
         }
-        printColor(COL_GREEN, "%s healed for %lld HP (Lifesteal)\n",
-                   attacker->name, result->lifeStealAmount);
+        sprintf(logMsg, "%s healed %lld HP (Lifesteal)",
+                attacker->name, result->lifeStealAmount);
+        AddCombatLog(logMsg);
     }
 
     // Apply status effects
@@ -205,7 +211,8 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
             case STUN: statusName = "Stun"; break;
             case FREEZE: statusName = "Freeze"; break;
         }
-        printColor(COL_MAGENTA, "%s is afflicted with %s!\n", defender->name, statusName);
+        sprintf(logMsg, "%s is afflicted with %s!", defender->name, statusName);
+        AddCombatLog(logMsg);
     }
 
     // Apply thorn damage
@@ -214,8 +221,9 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
         if (attacker->attribute.hp < 0) {
             attacker->attribute.hp = 0;
         }
-        printColor(COL_CYAN, "%s took %lld thorn damage!\n",
-                   attacker->name, result->thornDamage);
+        sprintf(logMsg, "%s took %lld thorn damage!",
+                attacker->name, result->thornDamage);
+        AddCombatLog(logMsg);
     }
 }
 
@@ -223,7 +231,7 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
 //  STATUS EFFECT TICK
 //=====================================
 void ProcessStatusEffects(Character* character) {
-    printColor(COL_BRIGHT_BLACK, "\n--- Processing status effects for %s ---\n", character->name);
+    char logMsg[256];
 
     for (int i = 0; i < character->statusCount; i++) {
         Status* status = &character->currentStatus[i];
@@ -233,25 +241,29 @@ void ProcessStatusEffects(Character* character) {
             case BURN:
                 statusName = "Burn";
                 character->attribute.hp -= (long long)status->baseAmount;
-                printColor(COL_RED, "%s takes %lld damage from Burn!\n",
-                           character->name, (long long)status->baseAmount);
+                sprintf(logMsg, "%s takes %lld from Burn",
+                       character->name, (long long)status->baseAmount);
+                AddCombatLog(logMsg);
                 break;
 
             case POISON:
                 statusName = "Poison";
                 character->attribute.hp -= (long long)status->baseAmount;
-                printColor(COL_GREEN, "%s takes %lld damage from Poison!\n",
-                           character->name, (long long)status->baseAmount);
+                sprintf(logMsg, "%s takes %lld from Poison",
+                       character->name, (long long)status->baseAmount);
+                AddCombatLog(logMsg);
                 break;
 
             case STUN:
                 statusName = "Stun";
-                printColor(COL_YELLOW, "%s is stunned and cannot act!\n", character->name);
+                sprintf(logMsg, "%s is stunned!", character->name);
+                AddCombatLog(logMsg);
                 break;
 
             case FREEZE:
                 statusName = "Freeze";
-                printColor(COL_CYAN, "%s is frozen and cannot act!\n", character->name);
+                sprintf(logMsg, "%s is frozen!", character->name);
+                AddCombatLog(logMsg);
                 break;
         }
 
@@ -259,7 +271,8 @@ void ProcessStatusEffects(Character* character) {
         status->duration--;
 
         if (status->duration <= 0) {
-            printColor(COL_BRIGHT_BLACK, "%s's %s has worn off.\n", character->name, statusName);
+            sprintf(logMsg, "%s's %s wore off", character->name, statusName);
+            AddCombatLog(logMsg);
 
             // Remove status by shifting array
             for (int j = i; j < character->statusCount - 1; j++) {
@@ -288,7 +301,9 @@ void ProcessRegeneration(Character* character) {
             character->attribute.hp = character->attribute.maxHP;
         }
 
-        printColor(COL_GREEN, "%s regenerated %lld HP!\n", character->name, healAmount);
+        char logMsg[256];
+        sprintf(logMsg, "%s regenerated %lld HP", character->name, healAmount);
+        AddCombatLog(logMsg);
     }
 }
 
@@ -311,7 +326,9 @@ int IsIncapacitated(const Character* character) {
 void ExecuteCombatTurn(Character* attacker, Character* defender) {
     // Check if attacker is incapacitated
     if (IsIncapacitated(attacker)) {
-        printColor(COL_YELLOW, "%s is incapacitated and cannot attack!\n", attacker->name);
+        char logMsg[256];
+        sprintf(logMsg, "%s is incapacitated!", attacker->name);
+        AddCombatLog(logMsg);
         return;
     }
 
