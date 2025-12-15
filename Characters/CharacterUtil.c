@@ -32,18 +32,6 @@ Character playerBluePrint = {
     .blessingCount = 0,
     .statusCount = 0,
 };
-
-void CharacterApplyDamage(Character* target, const long long rawDamage) {
-    long long finalDamage = rawDamage - target->attribute.defense;
-    if (finalDamage < 0) {
-        finalDamage = 0;
-    }
-
-    target->attribute.hp -= finalDamage;
-    if (target->attribute.hp < 0) {
-        target->attribute.hp = 0;
-    }
-}
 void CharacterAddBlessing(Character* target, const Blessing* blessing) {
     for (int i = 0; i < target->blessingCount; i++) {
         if (target->currentBlessing[i].id == blessing->id) {

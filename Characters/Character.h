@@ -53,8 +53,7 @@ typedef struct {
 //=====================================
 //  CHARACTER PROPERTY
 //=====================================
-Character playerBluePrint;
-void CharacterApplyDamage(Character* target, long long );
+extern Character playerBluePrint;
 void CharacterAddBlessing(Character* target, const Blessing* blessing);
 void CharacterAddStatus(Character* character, const Status* status);
 
