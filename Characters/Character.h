@@ -65,5 +65,16 @@ void CharacterStatsTab(void* data);
 void CharacterBlessingTab(void* data);
 void CharacterRenderer(Character* character);
 
-
+//=====================================
+//  CHARACTER GENERATOR
+//=====================================
+void InitRandomGenerator();
+CharacterType DetermineEnemyType(int floor);
+Character GenerateEnemy(int floor);
+Character GeneratePlayer(const char* playerName);
+static long long ScaleHP(long long base, int floor, float multiplier);
+static long long ScaleLinearStat(long long base, int floor, float multiplier);
+static int ScalePercentage(int base, int floor, float multiplier, int cap);
+static int CalculateBlessingCount(int floor, CharacterType type);
+static long long CalculateBlessingStacks(int floor, CharacterType type);
 #endif

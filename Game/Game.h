@@ -1,3 +1,4 @@
+
 #ifndef GAME_H
 #define GAME_H
 
@@ -6,10 +7,6 @@
 //=====================================
 void BlessingWinningReward();
 void BlessingBossReward();
-
-//=====================================
-//  ENEMY MANAGER
-//=====================================
 
 //=====================================
 //  DAMAGE MANAGER

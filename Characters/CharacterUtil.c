@@ -1,4 +1,8 @@
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "Character.h"
 #include "../Utils/Utils.h"
@@ -222,4 +226,206 @@ void CharacterRenderer(Character* character) {
         {"Blessing Stat", CharacterBlessingTab}
     };
     showTabPanel(tabs, 2, character);
+}
+
+//=====================================
+//  CHARACTER GENERATOR
+//=====================================
+static long long ScaleHP(const long long base, const int floor, const float multiplier) {
+    return (long long)((double)base * pow(1.15, floor * 0.8) * (1.0 + floor * 0.3) * multiplier);
+}
+
+static long long ScaleLinearStat(const long long base, const int floor, const float multiplier) {
+    return (long long)((double)base * pow(1.12, floor * 0.7) + floor * 2.5 * multiplier);
+}
+
+static int ScalePercentage(const int base, const int floor, const float multiplier, const int cap) {
+    const int scaled = base + (int)(log2(floor + 1) * 5 * multiplier);
+    return (scaled > cap) ? cap : scaled;
+}
+
+static int CalculateBlessingCount(const int floor, const CharacterType type) {
+    int baseCount = 0;
+    switch(type) {
+        case NORMAL:
+            baseCount = (floor / 5);
+            break;
+        case ELITE:
+            baseCount = 1 + (floor / 4);
+            break;
+        case BOSS:
+            baseCount = 2 + (floor / 3);
+            break;
+        default:
+            baseCount = 0;
+    }
+    return (baseCount > 15) ? 15 : baseCount;
+}
+
+static long long CalculateBlessingStacks(const int floor, const CharacterType type) {
+    long long stacks;
+
+    switch(type) {
+        case NORMAL:
+            // Conservative: 1 + floor/4
+            // Floor 1: 1, Floor 10: 3, Floor 40: 11, Floor 100: 26
+            stacks = 1 + (floor / 4);
+            break;
+        case ELITE:
+            // Moderate: 1 + floor/3
+            // Floor 1: 1, Floor 10: 4, Floor 40: 14, Floor 100: 34
+            stacks = 1 + (floor / 3);
+            break;
+        case BOSS:
+            // Aggressive: 1 + floor/2
+            // Floor 1: 1, Floor 10: 6, Floor 40: 21, Floor 100: 51
+            stacks = 1 + (floor / 2);
+            break;
+        default:
+            stacks = 1;
+    }
+
+    return stacks;
+}
+
+CharacterType DetermineEnemyType(const int floor) {
+    if (floor % 10 == 0) {
+        return BOSS;
+    }
+    if (floor % 7 == 0 || floor % 8 == 0 || floor % 9 == 0) {
+        return ELITE;
+    }
+    return NORMAL;
+}
+
+void InitRandomGenerator() {
+    static int initialized = 0;
+    if (!initialized) {
+        srand((unsigned int)time(NULL));
+        initialized = 1;
+    }
+}
+
+Character GenerateEnemy(const int floor) {
+    InitRandomGenerator();
+
+    Character enemy;
+    const CharacterType type = DetermineEnemyType(floor);
+    enemy.type = type;
+
+    // Base stats (floor 1 baseline)
+    const long long baseHP = 80;
+    const long long baseAttack = 8;
+    const long long baseDefense = 3;
+
+    // Type multipliers
+    // ReSharper disable once CppDFAUnusedValue
+    float hpMult = 1.0f;
+    // ReSharper disable once CppDFAUnusedValue
+    float atkMult = 1.0f;
+    // ReSharper disable once CppDFAUnusedValue
+    float defMult = 1.0f;
+
+    switch(type) {
+        case NORMAL:
+            strcpy(enemy.name, "Normal Enemy");
+            hpMult = 1.0f;
+            atkMult = 1.0f;
+            defMult = 1.0f;
+            break;
+        case ELITE:
+            strcpy(enemy.name, "Elite Enemy");
+            hpMult = 1.8f;    // 80% more HP
+            atkMult = 1.4f;   // 40% more attack
+            defMult = 1.3f;   // 30% more defense
+            break;
+        case BOSS:
+            strcpy(enemy.name, "Boss Enemy");
+            hpMult = 3.0f;    // 200% more HP
+            atkMult = 1.8f;   // 80% more attack
+            defMult = 1.6f;   // 60% more defense
+            break;
+        // ReSharper disable once CppDFAUnreachableCode
+        default:
+            strcpy(enemy.name, "Enemy");
+    }
+
+    // Apply scaling formulas
+    enemy.attribute.maxHP = ScaleHP(baseHP, floor, hpMult);
+    enemy.attribute.hp = enemy.attribute.maxHP;
+    enemy.attribute.attack = ScaleLinearStat(baseAttack, floor, atkMult);
+    enemy.attribute.defense = ScaleLinearStat(baseDefense, floor, defMult);
+
+    // Percentage stats (with caps to maintain balance)
+    enemy.attribute.criticalChange = ScalePercentage(5, floor, atkMult, 75);   // Cap at 75%
+    enemy.attribute.criticalDamage = ScalePercentage(50, floor, atkMult, 300); // Cap at 300%
+    enemy.attribute.damageBoost = ScalePercentage(0, floor, atkMult, 200);     // Cap at 200%
+    enemy.attribute.accuracy = ScalePercentage(70, floor, 1.0f, 100);          // Cap at 100%
+
+    // Resistances scale slower
+    enemy.attribute.fireResistance = ScalePercentage(0, floor, 0.5f, 50);      // Cap at 50%
+    enemy.attribute.iceResistance = ScalePercentage(0, floor, 0.5f, 50);
+    enemy.attribute.poisonResistance = ScalePercentage(0, floor, 0.5f, 50);
+
+    // Sustain stats
+    enemy.attribute.lifeSteal = ScalePercentage(0, floor, 0.3f, 30);           // Cap at 30%
+    enemy.attribute.regen = ScalePercentage(0, floor, 0.4f, 20);               // Cap at 20%
+
+    // Generate blessings
+    enemy.blessingCount = CalculateBlessingCount(floor, type);
+    const BlessingDatabase* db = GetBlessingDatabase();
+
+    // Bosses get 1 guaranteed legendary blessing
+    int startIndex = 0;
+    if (type == BOSS) {
+        // Find all legendary blessings
+        int legendaryCount = 0;
+        int legendaryIndices[10];  // Assume max 10 legendary in database
+
+        for (int i = 0; i < db->count; i++) {
+            if (db->blessings[i].rarity == RARITY_LEGENDARY) {
+                legendaryIndices[legendaryCount++] = i;
+            }
+        }
+
+        if (legendaryCount > 0) {
+            // Pick random legendary
+            const int randomLegendary = legendaryIndices[rand() % legendaryCount];
+            enemy.currentBlessing[0] = db->blessings[randomLegendary];
+            enemy.currentBlessing[0].stacks = CalculateBlessingStacks(floor, type);
+            startIndex = 1;
+            enemy.blessingCount++; // Add 1 for the legendary
+        }
+    }
+
+    // Generate remaining blessings (non-legendary for variety)
+    for (int i = startIndex; i < enemy.blessingCount && i < 100; i++) {
+        // Random blessing from database (excluding legendary for non-boss or additional boss blessings)
+        int randomIndex;
+        do {
+            randomIndex = rand() % db->count;
+        } while (db->blessings[randomIndex].rarity == RARITY_LEGENDARY);
+
+        enemy.currentBlessing[i] = db->blessings[randomIndex];
+
+        // Scale stacks based on floor and enemy type
+        enemy.currentBlessing[i].stacks = CalculateBlessingStacks(floor, type);
+    }
+
+    // No initial status effects
+    enemy.statusCount = 0;
+
+    return enemy;
+}
+
+Character GeneratePlayer(const char* playerName) {
+    Character player = playerBluePrint;
+
+    if (playerName != NULL && strlen(playerName) > 0) {
+        strncpy(player.name, playerName, sizeof(player.name) - 1);
+        player.name[sizeof(player.name) - 1] = '\0';
+    } else {
+        strcpy(player.name, "Player");
+    }
+    return player;
 }
