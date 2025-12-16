@@ -519,7 +519,7 @@ static Blessing sampleBlessings[] = {
         .stacks = 0,
         .effects = {
             {ACCURACY_BOOST, 0.15f},
-            {CRITICAL_CHANCE, 0.08f}
+            {CRITICAL_CHANGE, 0.08f}
         },
         .effectsCount = 2,
         .dotsCount = 0
@@ -745,7 +745,7 @@ static Blessing sampleBlessings[] = {
         .stacks = 0,
         .effects = {
             {ICE_DAMAGE, 0.45f},
-            {CRITICAL_CHANCE, 0.12f},
+            {CRITICAL_CHANGE, 0.12f},
             {ACCURACY_BOOST, 0.18f}
         },
         .effectsCount = 3,
