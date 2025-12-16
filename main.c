@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <conio.h>
 #include <string.h>
+#include <windows.h>
 
 #include "Utils/utils.h"
 #include "Characters/Character.h"
@@ -219,6 +220,8 @@ void ShowEncyclopedia() {
 //  MAIN MENU
 //=====================================
 int main() {
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
     int running = 1;
 
     while (running) {

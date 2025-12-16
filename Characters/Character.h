@@ -3,27 +3,45 @@
 
 #include "../Blessing/Blessing.h"
 #include "../Status/Status.h"
+
 //=====================================
-//  CHARACTER ATTRIBUTE
+//  CHARCTER STRUCTURE
 //=====================================
-typedef struct{
-    long long maxHP;
+typedef struct {
     long long hp;
     long long attack;
     long long defense;
-
-    int criticalChange;
+    int criticalChance;
     int criticalDamage;
     int damageBoost;
     int accuracy;
-
     int fireResistance;
     int iceResistance;
     int poisonResistance;
-
     int lifeSteal;
     int regen;
-}CombatAttribute;
+} StatBlock;
+
+//=====================================
+//  CHARACTER ATTRIBUTE
+//=====================================
+typedef struct {
+    long long maxHP;        // Calculated from base + bonus HP
+    long long currentHP;    // Dynamic HP value
+
+    StatBlock base;         // Never changes after creation
+    StatBlock bonus;        // From blessings/equipment
+    StatBlock current;      // base + bonus (READ-ONLY)
+} CombatAttribute;
+
+//=====================================
+//  COMBAT STATE
+//=====================================
+typedef struct {
+    int isDefending;
+    int damageReduction;    // Percentage (e.g., 50)
+    int reflectChance;      // Percentage (e.g., 30)
+} CombatState;
 
 //=====================================
 //  CHARACTER TYPE
@@ -42,6 +60,7 @@ typedef struct {
     char name[100];
     CharacterType type;
     CombatAttribute attribute;
+    CombatState combatState;
 
     Blessing currentBlessing[100];
     int blessingCount;
@@ -51,11 +70,23 @@ typedef struct {
 } Character;
 
 //=====================================
+//  STAT MANAGEMENT (CORE FUNCTIONS)
+//=====================================
+void RecalculateStats(Character* character);
+void InitializeCharacterStats(Character* character, StatBlock baseStats, long long baseHP);
+
+//=====================================
 //  CHARACTER PROPERTY
 //=====================================
 extern Character playerBluePrint;
 void CharacterAddBlessing(Character* target, const Blessing* blessing);
 void CharacterAddStatus(Character* character, const Status* status);
+
+//=====================================
+//  COMBAT STATE MANAGEMENT
+//=====================================
+void SetDefendingStance(Character* character);
+void ClearCombatState(Character* character);
 
 //=====================================
 //  CHARACTER RENDERER
@@ -71,9 +102,5 @@ void InitRandomGenerator();
 CharacterType DetermineEnemyType(int floor);
 Character GenerateEnemy(int floor);
 Character GeneratePlayer(const char* playerName);
-static long long ScaleHP(long long base, int floor, float multiplier);
-static long long ScaleLinearStat(long long base, int floor, float multiplier);
-static int ScalePercentage(int base, int floor, float multiplier, int cap);
-static int CalculateBlessingCount(int floor, CharacterType type);
-static long long CalculateBlessingStacks(int floor, CharacterType type);
+
 #endif
