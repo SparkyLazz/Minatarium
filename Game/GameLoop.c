@@ -7,6 +7,8 @@
 #include "Game.h"
 #include "../Characters/Character.h"
 #include "../Utils/Utils.h"
+#include "../Status/Status.h"
+#include "../Utils/Save.h"
 
 #define MAX_COMBAT_LOG 10
 
@@ -425,12 +427,16 @@ void StartGame() {
             }
 
         } else {
+            // SAVE RUN DATA BEFORE GAME OVER
+            SaveRun(&player, currentFloor);
+
             // Game over
             system("cls");
             printColor(COL_RED, "╔════════════════════════════════════════════════════════════╗\n");
             printColor(COL_RED, "║                         GAME OVER                          ║\n");
             printColor(COL_RED, "╚════════════════════════════════════════════════════════════╝\n\n");
-            printColor(COL_YELLOW, "You were defeated on Floor %d\n\n", currentFloor);
+            printColor(COL_YELLOW, "You were defeated on Floor %d\n", currentFloor);
+            printColor(COL_CYAN, "Your run has been saved!\n\n");
             printf("Press any key to return to main menu...");
             _getch();
             gameRunning = 0;

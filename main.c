@@ -8,6 +8,7 @@
 #include "Characters/Character.h"
 #include "Blessing/Blessing.h"
 #include "Game/Game.h"
+#include "Utils/Save.h"
 
 //=====================================
 //  ENCYCLOPEDIA FUNCTIONS
@@ -245,10 +246,21 @@ int main() {
         printf("                                         ");
         printColor(COL_BOLD, "║\n");
         printColor(COL_BOLD, "║ ");
-        printColor(COL_BRIGHT_RED, "[3] Quit");
+        printColor(COL_BRIGHT_YELLOW, "[3] View Previous Runs");
+        printf("                                  ");
+        printColor(COL_BOLD, "║\n");
+        printColor(COL_BOLD, "║ ");
+        printColor(COL_BRIGHT_RED, "[4] Quit");
         printf("                                                   ");
         printColor(COL_BOLD, "║\n");
         printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n");
+
+        // Show total runs count if any exist
+        int totalRuns = GetTotalRunCount();
+        if (totalRuns > 0) {
+            printColor(COL_BRIGHT_BLACK, "Total Runs Recorded: %d\n", totalRuns);
+        }
+
         printColor(COL_WHITE, "\nChoose: ");
 
         const int choice = _getch();
@@ -263,6 +275,10 @@ int main() {
                 break;
 
             case '3':
+                LoadAndDisplayRuns();
+                break;
+
+            case '4':
                 system("cls");
                 printColor(COL_CYAN, "Thanks for playing!\n");
                 running = 0;
