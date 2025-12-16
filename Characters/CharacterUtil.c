@@ -468,8 +468,8 @@ Character GeneratePlayer(const char* playerName) {
 
     // Setup base stats
     StatBlock baseStats = {0};
-    baseStats.attack = 30;
-    baseStats.defense = 15;
+    baseStats.attack = 50;
+    baseStats.defense = 50;
     baseStats.criticalChance = 20;
     baseStats.criticalDamage = 80;
     baseStats.damageBoost = 0;
@@ -477,10 +477,10 @@ Character GeneratePlayer(const char* playerName) {
     baseStats.fireResistance = 0;
     baseStats.iceResistance = 0;
     baseStats.poisonResistance = 0;
-    baseStats.lifeSteal = 0;
-    baseStats.regen = 0;
+    baseStats.lifeSteal = 40;
+    baseStats.regen = 40;
 
-    InitializeCharacterStats(&player, baseStats, 300);
+    InitializeCharacterStats(&player, baseStats, 1000);
 
     return player;
 }

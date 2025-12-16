@@ -11,6 +11,15 @@
 #define MAX_RUNS_DISPLAY 50
 
 //=====================================
+//  GLOBAL DATA FOR PANEL RENDERING
+//=====================================
+typedef struct {
+    RunData* runs;
+    int runCount;
+    int selectedRun;
+} PanelData;
+
+//=====================================
 //  SAVE RUN DATA
 //=====================================
 void SaveRun(const Character* player, const int floorReached) {
@@ -142,6 +151,224 @@ static int LoadRunsFromFile(RunData runs[], const int maxRuns) {
 }
 
 //=====================================
+//  SORTING FUNCTIONS (BUBBLE SORT)
+//=====================================
+void SortByFloorReached(RunData runs[], int count) {
+    // Bubble sort - highest floor first
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - i - 1; j++) {
+            if (runs[j].floorReached < runs[j + 1].floorReached) {
+                // Swap
+                RunData temp = runs[j];
+                runs[j] = runs[j + 1];
+                runs[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void SortByRecent(RunData runs[], int count) {
+    // Bubble sort - most recent first (highest timestamp)
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - i - 1; j++) {
+            if (runs[j].timestamp < runs[j + 1].timestamp) {
+                // Swap
+                RunData temp = runs[j];
+                runs[j] = runs[j + 1];
+                runs[j + 1] = temp;
+            }
+        }
+    }
+}
+
+//=====================================
+//  DISPLAY RUN DETAILS
+//=====================================
+void DisplayRunDetails(RunData* run, int runNumber) {
+    printColor(COL_BOLD, "════════════════════════════════════════════════════════════\n");
+    printColor(COL_BOLD, "Selected Run Details (#%d):\n\n", runNumber);
+
+    printColor(COL_CYAN, "Player Name: ");
+    printf("%s\n", run->playerName);
+    printColor(COL_YELLOW, "Floor Reached: ");
+    printf("%d\n", run->floorReached);
+
+    // Format timestamp
+    struct tm* timeinfo = localtime(&run->timestamp);
+    char timeStr[64];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
+    printColor(COL_BRIGHT_BLACK, "Date: ");
+    printf("%s\n\n", timeStr);
+
+    printColor(COL_BOLD, "Final Statistics:\n");
+    printf("  HP:            %lld / %lld\n", run->finalHP, run->maxHP);
+    printf("  Attack:        %lld\n", run->attack);
+    printf("  Defense:       %lld\n", run->defense);
+    printf("  Crit Chance:   %d%%\n", run->criticalChance);
+    printf("  Crit Damage:   %d%%\n\n", run->criticalDamage);
+
+    if (run->totalBlessings > 0) {
+        printColor(COL_BOLD, "Blessings Collected (%d):\n", run->totalBlessings);
+        for (int i = 0; i < 20 && strlen(run->blessingNames[i]) > 0; i++) {
+            printf("  - %s", run->blessingNames[i]);
+            if (run->blessingStacks[i] > 1) {
+                printColor(COL_GREEN, " x%lld\n", run->blessingStacks[i]);
+            } else {
+                printf("\n");
+            }
+        }
+    }
+}
+
+void DisplayRunList(RunData runs[], int count, int selectedIndex, const char* sortType) {
+    printColor(COL_BOLD, "Sorting by: ");
+    printColor(COL_CYAN, "%s\n\n", sortType);
+
+    int displayStart = selectedIndex - 5;
+    int displayEnd = selectedIndex + 5;
+    if (displayStart < 0) displayStart = 0;
+    if (displayEnd >= count) displayEnd = count - 1;
+
+    for (int i = displayStart; i <= displayEnd; i++) {
+        if (i == selectedIndex) {
+            printColor(COL_CYAN, ">>> ");
+        } else {
+            printf("    ");
+        }
+
+        // Format timestamp
+        struct tm* timeinfo = localtime(&runs[i].timestamp);
+        char timeStr[64];
+        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M", timeinfo);
+
+        // Color based on floor
+        Color floorColor;
+        if (runs[i].floorReached >= 50) floorColor = COL_YELLOW;
+        else if (runs[i].floorReached >= 30) floorColor = COL_MAGENTA;
+        else if (runs[i].floorReached >= 15) floorColor = COL_CYAN;
+        else floorColor = COL_GREEN;
+
+        printf("%s - ", runs[i].playerName);
+        printColor(COL_BOLD, "Floor ");
+        printColor(floorColor, "%d", runs[i].floorReached);
+        printf(" - %s\n", timeStr);
+    }
+}
+
+//=====================================
+//  TAB RENDER FUNCTIONS
+//=====================================
+void RenderHighestFloorTab(void* data) {
+    PanelData* panelData = (PanelData*)data;
+
+    // Create a copy for sorting
+    RunData sortedRuns[MAX_RUNS_DISPLAY];
+    memcpy(sortedRuns, panelData->runs, sizeof(RunData) * panelData->runCount);
+
+    // Sort by floor
+    SortByFloorReached(sortedRuns, panelData->runCount);
+
+    // Display list
+    DisplayRunList(sortedRuns, panelData->runCount, panelData->selectedRun, "Highest Floor");
+    printf("\n");
+
+    // Display selected run details
+    DisplayRunDetails(&sortedRuns[panelData->selectedRun], panelData->selectedRun + 1);
+
+    printf("\n");
+    printColor(COL_BRIGHT_BLACK, "Use UP/DOWN arrows to navigate between runs\n");
+}
+
+void RenderRecentlyPlayedTab(void* data) {
+    PanelData* panelData = (PanelData*)data;
+
+    // Create a copy for sorting
+    RunData sortedRuns[MAX_RUNS_DISPLAY];
+    memcpy(sortedRuns, panelData->runs, sizeof(RunData) * panelData->runCount);
+
+    // Sort by timestamp
+    SortByRecent(sortedRuns, panelData->runCount);
+
+    // Display list
+    DisplayRunList(sortedRuns, panelData->runCount, panelData->selectedRun, "Recently Played");
+    printf("\n");
+
+    // Display selected run details
+    DisplayRunDetails(&sortedRuns[panelData->selectedRun], panelData->selectedRun + 1);
+
+    printf("\n");
+    printColor(COL_BRIGHT_BLACK, "Use UP/DOWN arrows to navigate between runs\n");
+}
+
+//=====================================
+//  CUSTOM PANEL WITH NAVIGATION
+//=====================================
+void ShowRunsWithPanel(RunData runs[], int runCount) {
+    PanelData panelData = {
+        .runs = runs,
+        .runCount = runCount,
+        .selectedRun = 0
+    };
+
+    Tab tabs[2] = {
+        {"Highest Floor", RenderHighestFloorTab},
+        {"Recently Played", RenderRecentlyPlayedTab}
+    };
+
+    int activeTab = 0;
+    int running = 1;
+
+    while (running) {
+        system("cls");
+
+        // Tab headers
+        for (int i = 0; i < 2; i++) {
+            if (i == activeTab) {
+                printf("[%s]", tabs[i].title);
+            } else {
+                printf(" %s  ", tabs[i].title);
+            }
+        }
+        printf("\n");
+        printColor(COL_BOLD, "════════════════════════════════════════════════════════════\n");
+        printColor(COL_BRIGHT_BLACK, "Total Runs: %d\n", runCount);
+        printColor(COL_BOLD, "════════════════════════════════════════════════════════════\n\n");
+
+        // Render active tab content
+        if (tabs[activeTab].renderContent) {
+            tabs[activeTab].renderContent(&panelData);
+        }
+
+        printf("\n");
+        printColor(COL_BOLD, "════════════════════════════════════════════════════════════\n");
+        printColor(COL_BRIGHT_BLACK, "LEFT/RIGHT: Switch tabs | UP/DOWN: Navigate runs | ESC: Exit\n");
+
+        // Handle input
+        int key = _getch();
+        if (key == 224) {
+            key = _getch();
+            if (key == 75) { // Left arrow
+                activeTab--;
+                if (activeTab < 0) activeTab = 1;
+                panelData.selectedRun = 0; // Reset selection when changing tabs
+            } else if (key == 77) { // Right arrow
+                activeTab++;
+                if (activeTab >= 2) activeTab = 0;
+                panelData.selectedRun = 0; // Reset selection when changing tabs
+            } else if (key == 72) { // Up arrow
+                panelData.selectedRun--;
+                if (panelData.selectedRun < 0) panelData.selectedRun = 0;
+            } else if (key == 80) { // Down arrow
+                panelData.selectedRun++;
+                if (panelData.selectedRun >= runCount) panelData.selectedRun = runCount - 1;
+            }
+        } else if (key == 27) { // ESC
+            running = 0;
+        }
+    }
+}
+
+//=====================================
 //  DISPLAY PREVIOUS RUNS
 //=====================================
 void LoadAndDisplayRuns() {
@@ -156,91 +383,7 @@ void LoadAndDisplayRuns() {
         return;
     }
 
-    int selectedRun = runCount - 1;  // Start with most recent run
-    int viewing = 1;
-
-    while (viewing) {
-        system("cls");
-        printColor(COL_BOLD, "╔════════════════════════════════════════════════════════════╗\n");
-        printColor(COL_BOLD, "║ ");
-        printColor(COL_CYAN, "Previous Runs");
-        printf(" - Total: %d                              ", runCount);
-        printColor(COL_BOLD, "║\n");
-        printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n\n");
-
-        // Display list of runs
-        printColor(COL_BOLD, "Run History (most recent first):\n\n");
-
-        int displayStart = selectedRun - 5;
-        int displayEnd = selectedRun + 5;
-        if (displayStart < 0) displayStart = 0;
-        if (displayEnd >= runCount) displayEnd = runCount - 1;
-
-        for (int i = displayEnd; i >= displayStart; i--) {
-            if (i == selectedRun) {
-                printColor(COL_CYAN, ">>> ");
-            } else {
-                printf("    ");
-            }
-
-            // Format timestamp
-            struct tm* timeinfo = localtime(&runs[i].timestamp);
-            char timeStr[64];
-            strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeinfo);
-
-            printf("[#%d] %s - Floor %d - %s\n",
-                   i + 1, runs[i].playerName, runs[i].floorReached, timeStr);
-        }
-
-        printf("\n");
-        printColor(COL_BOLD, "════════════════════════════════════════════════════════════\n");
-        printColor(COL_BOLD, "Selected Run Details:\n\n");
-
-        RunData* run = &runs[selectedRun];
-
-        printColor(COL_CYAN, "Player Name: ");
-        printf("%s\n", run->playerName);
-        printColor(COL_YELLOW, "Floor Reached: ");
-        printf("%d\n\n", run->floorReached);
-
-        printColor(COL_BOLD, "Final Statistics:\n");
-        printf("  HP:            %lld / %lld\n", run->finalHP, run->maxHP);
-        printf("  Attack:        %lld\n", run->attack);
-        printf("  Defense:       %lld\n", run->defense);
-        printf("  Crit Chance:   %d%%\n", run->criticalChance);
-        printf("  Crit Damage:   %d%%\n\n", run->criticalDamage);
-
-        if (run->totalBlessings > 0) {
-            printColor(COL_BOLD, "Blessings Collected (%d):\n", run->totalBlessings);
-            for (int i = 0; i < 20 && strlen(run->blessingNames[i]) > 0; i++) {
-                printf("  - %s", run->blessingNames[i]);
-                if (run->blessingStacks[i] > 1) {
-                    printColor(COL_GREEN, " x%lld\n", run->blessingStacks[i]);
-                } else {
-                    printf("\n");
-                }
-            }
-        }
-
-        printf("\n");
-        printColor(COL_BRIGHT_BLACK, "Use UP/DOWN arrows to navigate, ESC to return\n");
-
-        int key = _getch();
-        if (key == 224) {
-            key = _getch();
-            if (key == 72) { // Up
-                selectedRun++;
-                if (selectedRun >= runCount) selectedRun = runCount - 1;
-            }
-            else if (key == 80) { // Down
-                selectedRun--;
-                if (selectedRun < 0) selectedRun = 0;
-            }
-        }
-        else if (key == 27) { // ESC
-            viewing = 0;
-        }
-    }
+    ShowRunsWithPanel(runs, runCount);
 }
 
 //=====================================
