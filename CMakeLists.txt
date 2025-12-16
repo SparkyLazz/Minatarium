@@ -16,4 +16,6 @@ add_executable(Minatarium
         Game/GameReward.c
         Game/GameDamage.c
         Game/GameLoop.c
+        Utils/Save.h
+        Utils/SaveFile.c
 )

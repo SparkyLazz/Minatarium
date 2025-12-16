@@ -7,6 +7,8 @@
 #include "Game.h"
 #include "../Characters/Character.h"
 #include "../Utils/Utils.h"
+#include "../Status/Status.h"
+#include "../Utils/Save.h"
 
 #define MAX_COMBAT_LOG 10
 
@@ -16,7 +18,6 @@
 typedef struct {
     char logs[MAX_COMBAT_LOG][256];
     int count;
-    int currentIndex;
 } CombatLog;
 
 static CombatLog combatLog = {0};
@@ -38,17 +39,16 @@ void AddCombatLog(const char* message) {
 
 void ClearCombatLog() {
     combatLog.count = 0;
-    combatLog.currentIndex = 0;
 }
 
 //=====================================
 //  UI DRAWING FUNCTIONS
 //=====================================
 void DrawHPBar(const Character* character, const int barWidth) {
-    const int filledBars = (int)((float)character->attribute.hp / (float)character->attribute.maxHP * (float)barWidth);
+    const int filledBars = (int)((float)character->attribute.currentHP / (float)character->attribute.maxHP * (float)barWidth);
 
     // Color based on HP percentage
-    const float hpPercent = (float)character->attribute.hp / (float)character->attribute.maxHP;
+    const float hpPercent = (float)character->attribute.currentHP / (float)character->attribute.maxHP;
     Color hpColor;
     if (hpPercent > 0.6f) hpColor = COL_GREEN;
     else if (hpPercent > 0.3f) hpColor = COL_YELLOW;
@@ -71,18 +71,10 @@ void DrawStatusIcons(const Character* character) {
     printf(" [");
     for (int i = 0; i < character->statusCount && i < 5; i++) {
         switch (character->currentStatus[i].type) {
-            case BURN:
-                printColor(COL_RED, "🔥");
-                break;
-            case POISON:
-                printColor(COL_GREEN, "☠");
-                break;
-            case STUN:
-                printColor(COL_YELLOW, "⚡");
-                break;
-            case FREEZE:
-                printColor(COL_CYAN, "❄");
-                break;
+            case BURN: printColor(COL_RED, "F"); break;
+            case POISON: printColor(COL_GREEN, "P"); break;
+            case STUN: printColor(COL_YELLOW, "S"); break;
+            case FREEZE: printColor(COL_CYAN, "I"); break;
         }
     }
     printf("]");
@@ -99,17 +91,10 @@ void DrawCombatUI(const Character* player, const Character* enemy, const int flo
 
     // Enemy type indicator
     switch (enemy->type) {
-        case NORMAL:
-            printColor(COL_GREEN, "[NORMAL]");
-            break;
-        case ELITE:
-            printColor(COL_MAGENTA, "[ELITE]");
-            break;
-        case BOSS:
-            printColor(COL_YELLOW, "[BOSS]");
-            break;
-        default:
-            printf("[     ]");
+        case NORMAL: printColor(COL_GREEN, "[NORMAL]"); break;
+        case ELITE: printColor(COL_MAGENTA, "[ELITE]"); break;
+        case BOSS: printColor(COL_YELLOW, "[BOSS]"); break;
+        default: printf("[     ]");
     }
 
     printColor(COL_BOLD, " ║\n");
@@ -118,15 +103,21 @@ void DrawCombatUI(const Character* player, const Character* enemy, const int flo
     // Player HP
     printColor(COL_BOLD, "%-20s ", player->name);
     DrawHPBar(player, 30);
-    printf(" %lld/%lld", player->attribute.hp, player->attribute.maxHP);
+    printf(" %lld/%lld", player->attribute.currentHP, player->attribute.maxHP);
     DrawStatusIcons(player);
+    if (player->combatState.isDefending) {
+        printColor(COL_CYAN, " [DEFEND]");
+    }
     printf("\n");
 
     // Enemy HP
     printColor(COL_BOLD, "%-20s ", enemy->name);
     DrawHPBar(enemy, 30);
-    printf(" %lld/%lld", enemy->attribute.hp, enemy->attribute.maxHP);
+    printf(" %lld/%lld", enemy->attribute.currentHP, enemy->attribute.maxHP);
     DrawStatusIcons(enemy);
+    if (enemy->combatState.isDefending) {
+        printColor(COL_CYAN, " [DEFEND]");
+    }
     printf("\n\n");
 
     // Combat Log
@@ -152,37 +143,66 @@ void DrawCombatUI(const Character* player, const Character* enemy, const int flo
 }
 
 //=====================================
+//  TURN START/END FUNCTIONS
+//=====================================
+void StartTurn(Character* character) {
+    // Reset temporary combat state from previous turn
+    ClearCombatState(character);
+
+    // Safety: recalculate stats at start of turn
+    RecalculateStats(character);
+
+    // Process status effects
+    ProcessStatusEffects(character);
+    ProcessRegeneration(character);
+}
+
+void EndTurn(Character* character) {
+    // Clear defend stance (temporary effect)
+    ClearCombatState(character);
+}
+
+//=====================================
 //  GAME ACTIONS
 //=====================================
 void PlayerAttackAction(Character* player, Character* enemy) {
-    char logMsg[256];
-
     AddCombatLog("=== PLAYER TURN ===");
     ExecuteCombatTurn(player, enemy);
 
-    if (enemy->attribute.hp <= 0) {
+    if (enemy->attribute.currentHP <= 0) {
+        char logMsg[256];
         sprintf(logMsg, "%s has been defeated!", enemy->name);
         AddCombatLog(logMsg);
     }
 }
 
 void PlayerDefendAction(Character* player) {
-    // Defend reduces next incoming damage by 50% (we'll store this as a temporary defense boost)
-    const long long defenseBoost = player->attribute.defense / 2;
-    player->attribute.defense += defenseBoost;
+    // Set defend STANCE (not stat modification)
+    SetDefendingStance(player);
 
     char logMsg[256];
-    sprintf(logMsg, "%s takes a defensive stance! (+%lld DEF)", player->name, defenseBoost);
+    sprintf(logMsg, "%s takes a defensive stance! (-%d%% damage)",
+            player->name, player->combatState.damageReduction);
     AddCombatLog(logMsg);
 }
 
 void EnemyTurn(Character* player, Character* enemy) {
-    if (enemy->attribute.hp <= 0) return;
+    if (enemy->attribute.currentHP <= 0) return;
 
     AddCombatLog("=== ENEMY TURN ===");
-    ExecuteCombatTurn(enemy, player);
 
-    if (player->attribute.hp <= 0) {
+    // Simple AI: 30% chance to defend if HP < 40%
+    float hpPercent = (float)enemy->attribute.currentHP / (float)enemy->attribute.maxHP;
+    if (hpPercent < 0.4f && (rand() % 100) < 30) {
+        SetDefendingStance(enemy);
+        char logMsg[256];
+        sprintf(logMsg, "%s takes a defensive stance!", enemy->name);
+        AddCombatLog(logMsg);
+    } else {
+        ExecuteCombatTurn(enemy, player);
+    }
+
+    if (player->attribute.currentHP <= 0) {
         char logMsg[256];
         sprintf(logMsg, "%s has been defeated...", player->name);
         AddCombatLog(logMsg);
@@ -196,11 +216,6 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
     ClearCombatLog();
     AddCombatLog("Combat started!");
 
-    // Apply blessing effects at start of combat
-    char logMsg[256];
-    sprintf(logMsg, "Blessing effects applied!");
-    AddCombatLog(logMsg);
-
     int combatRunning = 1;
     int playerTurn = 1;
 
@@ -209,11 +224,10 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
         DrawCombatUI(player, enemy, floor);
 
         if (playerTurn) {
-            // Check for status effects
-            ProcessStatusEffects(player);
-            ProcessRegeneration(player);
+            // START OF PLAYER TURN
+            StartTurn(player);
 
-            if (player->attribute.hp <= 0) {
+            if (player->attribute.currentHP <= 0) {
                 // ReSharper disable once CppDFAUnusedValue
                 combatRunning = 0;
                 break;
@@ -221,6 +235,7 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
 
             if (IsIncapacitated(player)) {
                 AddCombatLog("Player is incapacitated!");
+                EndTurn(player);
                 playerTurn = 0;
                 Sleep(1000);
                 continue;
@@ -248,11 +263,13 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
             switch (choice) {
                 case '1':
                     PlayerAttackAction(player, enemy);
+                    EndTurn(player);
                     playerTurn = 0;
                     break;
 
                 case '2':
                     PlayerDefendAction(player);
+                    EndTurn(player);
                     playerTurn = 0;
                     break;
 
@@ -270,7 +287,7 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
             }
 
             // Check if enemy is dead
-            if (enemy->attribute.hp <= 0) {
+            if (enemy->attribute.currentHP <= 0) {
                 // ReSharper disable once CppDFAUnusedValue
                 combatRunning = 0;
                 DrawCombatUI(player, enemy, floor);
@@ -278,12 +295,11 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
             }
 
         } else {
-            // Enemy turn
+            // START OF ENEMY TURN
             Sleep(800);
-            ProcessStatusEffects(enemy);
-            ProcessRegeneration(enemy);
+            StartTurn(enemy);
 
-            if (enemy->attribute.hp <= 0) {
+            if (enemy->attribute.currentHP <= 0) {
                 // ReSharper disable once CppDFAUnusedValue
                 combatRunning = 0;
                 break;
@@ -295,10 +311,12 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
                 AddCombatLog("Enemy is incapacitated!");
             }
 
+            // END OF ENEMY TURN
+            EndTurn(enemy);
             playerTurn = 1;
 
             // Check if player is dead
-            if (player->attribute.hp <= 0) {
+            if (player->attribute.currentHP <= 0) {
                 // ReSharper disable once CppDFAUnusedValue
                 combatRunning = 0;
                 DrawCombatUI(player, enemy, floor);
@@ -310,7 +328,7 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
     }
 
     // Return 1 if player won, 0 if player lost
-    return player->attribute.hp > 0;
+    return player->attribute.currentHP > 0;
 }
 
 //=====================================
@@ -321,19 +339,20 @@ void ApplyPostCombatHealing(Character* player) {
     const long long baseHeal = player->attribute.maxHP / 10;
 
     // Additional healing from regen stat
-    const long long regenHeal = (long long)((float)player->attribute.maxHP * ((float)player->attribute.regen / 100.0f));
+    const long long regenHeal = (long long)((float)player->attribute.maxHP *
+                                            ((float)player->attribute.current.regen / 100.0f));
 
     const long long totalHeal = baseHeal + regenHeal;
 
-    player->attribute.hp += totalHeal;
-    if (player->attribute.hp > player->attribute.maxHP) {
-        player->attribute.hp = player->attribute.maxHP;
+    player->attribute.currentHP += totalHeal;
+    if (player->attribute.currentHP > player->attribute.maxHP) {
+        player->attribute.currentHP = player->attribute.maxHP;
     }
 
     system("cls");
     printColor(COL_GREEN, "Victory!\n\n");
     printColor(COL_CYAN, "You recovered %lld HP (10%% base + regen bonus)\n", totalHeal);
-    printf("Current HP: %lld/%lld\n\n", player->attribute.hp, player->attribute.maxHP);
+    printf("Current HP: %lld/%lld\n\n", player->attribute.currentHP, player->attribute.maxHP);
 
     printf("Press any key to continue...");
     _getch();
@@ -354,7 +373,7 @@ void StartGame() {
     printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n");
     printf("Name: ");
     fgets(playerName, sizeof(playerName), stdin);
-    playerName[strcspn(playerName, "\n")] = 0; // Remove newline
+    playerName[strcspn(playerName, "\n")] = 0;
 
     if (strlen(playerName) == 0) {
         strcpy(playerName, "Adventurer");
@@ -375,9 +394,7 @@ void StartGame() {
 
             // Give blessing reward
             if (enemy.type == BOSS) {
-                // Boss defeated - give legendary blessing
                 const BlessingDatabase* db = GetBlessingDatabase();
-                // Find a legendary blessing
                 Blessing* legendary = NULL;
                 for (int i = 0; i < db->count; i++) {
                     if (db->blessings[i].rarity == RARITY_LEGENDARY) {
@@ -410,12 +427,16 @@ void StartGame() {
             }
 
         } else {
+            // SAVE RUN DATA BEFORE GAME OVER
+            SaveRun(&player, currentFloor);
+
             // Game over
             system("cls");
             printColor(COL_RED, "╔════════════════════════════════════════════════════════════╗\n");
             printColor(COL_RED, "║                         GAME OVER                          ║\n");
             printColor(COL_RED, "╚════════════════════════════════════════════════════════════╝\n\n");
-            printColor(COL_YELLOW, "You were defeated on Floor %d\n\n", currentFloor);
+            printColor(COL_YELLOW, "You were defeated on Floor %d\n", currentFloor);
+            printColor(COL_CYAN, "Your run has been saved!\n\n");
             printf("Press any key to return to main menu...");
             _getch();
             gameRunning = 0;

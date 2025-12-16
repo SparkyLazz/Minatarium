@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "Game.h"
 #include "../Characters/Character.h"
+
 //=====================================
 //  HELPER FUNCTIONS
 //=====================================
@@ -46,77 +49,30 @@ static void CollectDoTEffects(const Character* attacker, DamageResult* result) {
     }
 }
 
-static void ApplyBlessingAttributeBoosts(Character* character) {
-    // Apply HP Boost
-    const float hpBoost = CalculateTotalBlessingEffect(character, HP_BOOST);
-    character->attribute.maxHP = (long long)((float)character->attribute.maxHP * (1.0f + hpBoost));
-    if (character->attribute.hp > character->attribute.maxHP) {
-        character->attribute.hp = character->attribute.maxHP;
-    }
-
-    // Apply Defense Boost
-    const float defBoost = CalculateTotalBlessingEffect(character, DEFENSE_BOOST);
-    character->attribute.defense = (long long)((float)character->attribute.defense * (1.0f + defBoost));
-
-    // Apply Damage Boost to damageBoost stat
-    const float dmgBoost = CalculateTotalBlessingEffect(character, DAMAGE_BOOST);
-    character->attribute.damageBoost = (int)(dmgBoost * 100.0f);
-
-    // Apply Critical Chance
-    const float critChance = CalculateTotalBlessingEffect(character, CRITICAL_CHANGE);
-    character->attribute.criticalChange += (int)(critChance * 100.0f);
-    if (character->attribute.criticalChange > 100) {
-        character->attribute.criticalChange = 100;
-    }
-
-    // Apply Critical Damage
-    const float critDmg = CalculateTotalBlessingEffect(character, CRITICAL_DAMAGE);
-    character->attribute.criticalDamage += (int)(critDmg * 100.0f);
-
-    // Apply Accuracy Boost
-    const float accBoost = CalculateTotalBlessingEffect(character, ACCURACY_BOOST);
-    character->attribute.accuracy += (int)(accBoost * 100.0f);
-    if (character->attribute.accuracy > 100) {
-        character->attribute.accuracy = 100;
-    }
-
-    // Apply Lifesteal
-    const float lifesteal = CalculateTotalBlessingEffect(character, LIFESTEAL);
-    character->attribute.lifeSteal = (int)(lifesteal * 100.0f);
-
-    // Apply Regen
-    const float regen = CalculateTotalBlessingEffect(character, REGEN);
-    character->attribute.regen = (int)(regen * 100.0f);
-}
-
 //=====================================
 //  MAIN DAMAGE CALCULATION
 //=====================================
 DamageResult CalculateDamage(Character* attacker, Character* defender) {
     DamageResult result = {0};
 
-    // Update attributes based on blessings before calculation
-    ApplyBlessingAttributeBoosts(attacker);
-    ApplyBlessingAttributeBoosts(defender);
-
     // 1. Check if attack misses
-    const int hitChance = attacker->attribute.accuracy;
+    const int hitChance = attacker->attribute.current.accuracy;
     if (!RollChance(hitChance)) {
         result.didMiss = 1;
         return result;
     }
 
-    // 2. Calculate base damage
-    long long baseDamage = attacker->attribute.attack;
+    // 2. Calculate base damage (use CURRENT stats)
+    long long baseDamage = attacker->attribute.current.attack;
 
     // 3. Apply damage boost
-    const float damageMultiplier = 1.0f + ((float)attacker->attribute.damageBoost / 100.0f);
+    const float damageMultiplier = 1.0f + ((float)attacker->attribute.current.damageBoost / 100.0f);
     baseDamage = (long long)((float)baseDamage * damageMultiplier);
 
-    // 4. Check for critical hit
-    result.isCritical = RollChance(attacker->attribute.criticalChange);
+    // 4. Check for critical hit (crit chance already capped in RecalculateStats)
+    result.isCritical = RollChance(attacker->attribute.current.criticalChance);
     if (result.isCritical) {
-        const float critMultiplier = 1.0f + ((float)attacker->attribute.criticalDamage / 100.0f);
+        const float critMultiplier = 1.0f + ((float)attacker->attribute.current.criticalDamage / 100.0f);
         baseDamage = (long long)((float)baseDamage * critMultiplier);
     }
 
@@ -124,35 +80,41 @@ DamageResult CalculateDamage(Character* attacker, Character* defender) {
 
     // 5. Apply armor penetration
     const float armorPen = CalculateTotalBlessingEffect(attacker, ARMOR_PENETRATION);
-    const long long effectiveDefense = (long long)((float)defender->attribute.defense * (1.0f - armorPen));
+    long long effectiveDefense = (long long)((float)defender->attribute.current.defense * (1.0f - armorPen));
 
-    // 6. Calculate damage after defense
+    // 6. Apply to defend stance (damage reduction, NOT stat modification)
+    if (defender->combatState.isDefending) {
+        const float reductionMultiplier = 1.0f - ((float)defender->combatState.damageReduction / 100.0f);
+        baseDamage = (long long)((float)baseDamage * reductionMultiplier);
+    }
+
+    // 7. Calculate damage after defense
     long long damageAfterDefense = baseDamage - effectiveDefense;
     if (damageAfterDefense < 1) {
         damageAfterDefense = 1; // Minimum 1 damage
     }
 
-    // 7. Apply elemental damage
+    // 8. Apply elemental damage
     const float fireDmg = CalculateTotalBlessingEffect(attacker, FIRE_DAMAGE);
     const float iceDmg = CalculateTotalBlessingEffect(attacker, ICE_DAMAGE);
     const float poisonDmg = CalculateTotalBlessingEffect(attacker, POISON_DAMAGE);
 
     long long elementalDamage = 0;
-    elementalDamage += (long long)((float)baseDamage * fireDmg * (1.0f - (float)defender->attribute.fireResistance / 100.0f));
-    elementalDamage += (long long)((float)baseDamage * iceDmg * (1.0f - (float)defender->attribute.iceResistance / 100.0f));
-    elementalDamage += (long long)((float)baseDamage * poisonDmg * (1.0f - (float)defender->attribute.poisonResistance / 100.0f));
+    elementalDamage += (long long)((float)baseDamage * fireDmg * (1.0f - (float)defender->attribute.current.fireResistance / 100.0f));
+    elementalDamage += (long long)((float)baseDamage * iceDmg * (1.0f - (float)defender->attribute.current.iceResistance / 100.0f));
+    elementalDamage += (long long)((float)baseDamage * poisonDmg * (1.0f - (float)defender->attribute.current.poisonResistance / 100.0f));
 
     result.finalDamage = damageAfterDefense + elementalDamage;
 
-    // 8. Calculate lifesteal
-    if (attacker->attribute.lifeSteal > 0) {
-        result.lifeStealAmount = (long long)((float)result.finalDamage * ((float)attacker->attribute.lifeSteal / 100.0f));
+    // 9. Calculate lifesteal
+    if (attacker->attribute.current.lifeSteal > 0) {
+        result.lifeStealAmount = (long long)((float)result.finalDamage * ((float)attacker->attribute.current.lifeSteal / 100.0f));
     }
 
-    // 9. Check for DoT application
+    // 10. Check for DoT application
     CollectDoTEffects(attacker, &result);
 
-    // 10. Calculate thorn damage (defender's retaliation)
+    // 11. Calculate thorn damage (defender's retaliation)
     float thornEffect = CalculateTotalBlessingEffect(defender, THORN);
     if (thornEffect > 0.0f) {
         result.thornDamage = (long long)((float)result.finalDamage * thornEffect);
@@ -173,10 +135,10 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
         return;
     }
 
-    // Apply damage to defender
-    defender->attribute.hp -= result->finalDamage;
-    if (defender->attribute.hp < 0) {
-        defender->attribute.hp = 0;
+    // Apply damage to defender (use currentHP, not stat)
+    defender->attribute.currentHP -= result->finalDamage;
+    if (defender->attribute.currentHP < 0) {
+        defender->attribute.currentHP = 0;
     }
 
     // Display damage info
@@ -187,13 +149,17 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
         sprintf(logMsg, "%s dealt %lld damage to %s",
                 attacker->name, result->finalDamage, defender->name);
     }
+
+    if (defender->combatState.isDefending) {
+        strcat(logMsg, " (DEFENDED)");
+    }
     AddCombatLog(logMsg);
 
     // Apply lifesteal
     if (result->lifeStealAmount > 0) {
-        attacker->attribute.hp += result->lifeStealAmount;
-        if (attacker->attribute.hp > attacker->attribute.maxHP) {
-            attacker->attribute.hp = attacker->attribute.maxHP;
+        attacker->attribute.currentHP += result->lifeStealAmount;
+        if (attacker->attribute.currentHP > attacker->attribute.maxHP) {
+            attacker->attribute.currentHP = attacker->attribute.maxHP;
         }
         sprintf(logMsg, "%s healed %lld HP (Lifesteal)",
                 attacker->name, result->lifeStealAmount);
@@ -217,9 +183,9 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
 
     // Apply thorn damage
     if (result->thornDamage > 0) {
-        attacker->attribute.hp -= result->thornDamage;
-        if (attacker->attribute.hp < 0) {
-            attacker->attribute.hp = 0;
+        attacker->attribute.currentHP -= result->thornDamage;
+        if (attacker->attribute.currentHP < 0) {
+            attacker->attribute.currentHP = 0;
         }
         sprintf(logMsg, "%s took %lld thorn damage!",
                 attacker->name, result->thornDamage);
@@ -240,7 +206,7 @@ void ProcessStatusEffects(Character* character) {
         switch (status->type) {
             case BURN:
                 statusName = "Burn";
-                character->attribute.hp -= (long long)status->baseAmount;
+                character->attribute.currentHP -= (long long)status->baseAmount;
                 sprintf(logMsg, "%s takes %lld from Burn",
                        character->name, (long long)status->baseAmount);
                 AddCombatLog(logMsg);
@@ -248,7 +214,7 @@ void ProcessStatusEffects(Character* character) {
 
             case POISON:
                 statusName = "Poison";
-                character->attribute.hp -= (long long)status->baseAmount;
+                character->attribute.currentHP -= (long long)status->baseAmount;
                 sprintf(logMsg, "%s takes %lld from Poison",
                        character->name, (long long)status->baseAmount);
                 AddCombatLog(logMsg);
@@ -283,8 +249,8 @@ void ProcessStatusEffects(Character* character) {
         }
     }
 
-    if (character->attribute.hp < 0) {
-        character->attribute.hp = 0;
+    if (character->attribute.currentHP < 0) {
+        character->attribute.currentHP = 0;
     }
 }
 
@@ -292,13 +258,13 @@ void ProcessStatusEffects(Character* character) {
 //  REGENERATION TICK
 //=====================================
 void ProcessRegeneration(Character* character) {
-    if (character->attribute.regen > 0 && character->attribute.hp < character->attribute.maxHP) {
+    if (character->attribute.current.regen > 0 && character->attribute.currentHP < character->attribute.maxHP) {
         const long long healAmount = (long long)((float)character->attribute.maxHP *
-                                          ((float)character->attribute.regen / 100.0f));
-        character->attribute.hp += healAmount;
+                                          ((float)character->attribute.current.regen / 100.0f));
+        character->attribute.currentHP += healAmount;
 
-        if (character->attribute.hp > character->attribute.maxHP) {
-            character->attribute.hp = character->attribute.maxHP;
+        if (character->attribute.currentHP > character->attribute.maxHP) {
+            character->attribute.currentHP = character->attribute.maxHP;
         }
 
         char logMsg[256];
