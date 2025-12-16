@@ -415,7 +415,7 @@ Character GenerateEnemy(const int floor) {
     baseStats.iceResistance = ScalePercentage(0, floor, 0.5f, 50);
     baseStats.poisonResistance = ScalePercentage(0, floor, 0.5f, 50);
     baseStats.lifeSteal = ScalePercentage(0, floor, 0.3f, 30);
-    baseStats.regen = ScalePercentage(0, floor, 0.4f, 20);
+    baseStats.regen = ScalePercentage(0, floor, 0.05f, 20);
 
     long long scaledHP = ScaleHP(baseHP, floor, hpMult);
     InitializeCharacterStats(&enemy, baseStats, scaledHP);
