@@ -11,11 +11,16 @@ static int RollChance(const int chance) {
     return (rand() % 100) < chance;
 }
 
-static float CalculateTotalBlessingEffect(Character* character, const BlessingEffectType effectType) {
+static int ClampPercent(const int value, const int cap) {
+    if (value < 0) return 0;
+    return (value > cap) ? cap : value;
+}
+
+float TotalBlessingEffect(const Character* character, const BlessingEffectType effectType) {
     float totalEffect = 0.0f;
 
     for (int i = 0; i < character->blessingCount; i++) {
-        Blessing* blessing = &character->currentBlessing[i];
+        const Blessing* blessing = &character->currentBlessing[i];
 
         for (int j = 0; j < blessing->effectsCount; j++) {
             if (blessing->effects[j].type == effectType) {
@@ -46,114 +51,132 @@ static void CollectDoTEffects(const Character* attacker, DamageResult* result) {
     }
 }
 
-static void ApplyBlessingAttributeBoosts(Character* character) {
-    // Apply HP Boost
-    const float hpBoost = CalculateTotalBlessingEffect(character, HP_BOOST);
-    character->attribute.maxHP = (long long)((float)character->attribute.maxHP * (1.0f + hpBoost));
-    if (character->attribute.hp > character->attribute.maxHP) {
-        character->attribute.hp = character->attribute.maxHP;
-    }
+//=====================================
+//  DERIVED ATTRIBUTES
+//=====================================
+// Reads the BASE statistics and the blessing list, and returns the effective
+// statistics by value. This must stay free of writes to `character`: the
+// previous version stored its results back into the character, so every call
+// compounded on the last one and the same blessing was applied over and over.
+CombatAttribute ResolveAttributes(const Character* character) {
+    CombatAttribute a = character->attribute;
 
-    // Apply Defense Boost
-    const float defBoost = CalculateTotalBlessingEffect(character, DEFENSE_BOOST);
-    character->attribute.defense = (long long)((float)character->attribute.defense * (1.0f + defBoost));
+    // Multiplicative on the base value, not on the previous result.
+    const float hpBoost = TotalBlessingEffect(character, HP_BOOST);
+    a.maxHP = (long long)((float)character->attribute.maxHP * (1.0f + hpBoost));
+    if (a.maxHP < 1) a.maxHP = 1;
 
-    // Apply Damage Boost to damageBoost stat
-    const float dmgBoost = CalculateTotalBlessingEffect(character, DAMAGE_BOOST);
-    character->attribute.damageBoost = (int)(dmgBoost * 100.0f);
+    const float defBoost = TotalBlessingEffect(character, DEFENSE_BOOST);
+    a.defense = (long long)((float)character->attribute.defense * (1.0f + defBoost));
+    a.defense += character->tempDefenseBonus;
+    if (a.defense < 0) a.defense = 0;
 
-    // Apply Critical Chance
-    const float critChance = CalculateTotalBlessingEffect(character, CRITICAL_CHANGE);
-    character->attribute.criticalChange += (int)(critChance * 100.0f);
-    if (character->attribute.criticalChange > 100) {
-        character->attribute.criticalChange = 100;
-    }
+    // Additive on the base value. The generator writes floor-scaled values
+    // into the base, so these must add to them rather than replace them.
+    a.damageBoost = character->attribute.damageBoost
+                  + (int)(TotalBlessingEffect(character, DAMAGE_BOOST) * 100.0f);
+    a.criticalChange = ClampPercent(character->attribute.criticalChange
+                  + (int)(TotalBlessingEffect(character, CRITICAL_CHANGE) * 100.0f), 100);
+    a.criticalDamage = character->attribute.criticalDamage
+                  + (int)(TotalBlessingEffect(character, CRITICAL_DAMAGE) * 100.0f);
+    a.accuracy = ClampPercent(character->attribute.accuracy
+                  + (int)(TotalBlessingEffect(character, ACCURACY_BOOST) * 100.0f), 100);
+    a.lifeSteal = ClampPercent(character->attribute.lifeSteal
+                  + (int)(TotalBlessingEffect(character, LIFESTEAL) * 100.0f), 100);
+    a.regen = ClampPercent(character->attribute.regen
+                  + (int)(TotalBlessingEffect(character, REGEN) * 100.0f)
+                  + (int)(TotalBlessingEffect(character, REGEN_BOOST) * 100.0f), 25);
+    // Hard ceiling of 25%/turn: regeneration must never outpace damage
+    // outright, which a stacked REGEN blessing otherwise does trivially.
 
-    // Apply Critical Damage
-    const float critDmg = CalculateTotalBlessingEffect(character, CRITICAL_DAMAGE);
-    character->attribute.criticalDamage += (int)(critDmg * 100.0f);
+    // Current health is real mutable state; expose it clamped to the derived
+    // maximum so callers never see more than 100% on the bar.
+    if (a.hp > a.maxHP) a.hp = a.maxHP;
+    if (a.hp < 0) a.hp = 0;
 
-    // Apply Accuracy Boost
-    const float accBoost = CalculateTotalBlessingEffect(character, ACCURACY_BOOST);
-    character->attribute.accuracy += (int)(accBoost * 100.0f);
-    if (character->attribute.accuracy > 100) {
-        character->attribute.accuracy = 100;
-    }
-
-    // Apply Lifesteal
-    const float lifesteal = CalculateTotalBlessingEffect(character, LIFESTEAL);
-    character->attribute.lifeSteal = (int)(lifesteal * 100.0f);
-
-    // Apply Regen
-    const float regen = CalculateTotalBlessingEffect(character, REGEN);
-    character->attribute.regen = (int)(regen * 100.0f);
+    return a;
 }
 
 //=====================================
 //  MAIN DAMAGE CALCULATION
 //=====================================
-DamageResult CalculateDamage(Character* attacker, Character* defender) {
+DamageResult CalculateDamage(const Character* attacker, const Character* defender) {
     DamageResult result = {0};
 
-    // Update attributes based on blessings before calculation
-    ApplyBlessingAttributeBoosts(attacker);
-    ApplyBlessingAttributeBoosts(defender);
+    // Derive both sides into locals; neither character is modified.
+    const CombatAttribute atk = ResolveAttributes(attacker);
+    const CombatAttribute def = ResolveAttributes(defender);
 
-    // 1. Check if attack misses
-    const int hitChance = attacker->attribute.accuracy;
+    // 1. Invulnerability is a per-stack chance to negate the attack outright,
+    //    capped so it can never become total immunity.
+    const float invuln = TotalBlessingEffect(defender, INVULNERABLE);
+    if (invuln > 0.0f && RollChance(ClampPercent((int)(invuln * 100.0f), 50))) {
+        result.didMiss = 1;
+        return result;
+    }
+
+    // 2. Check if attack misses. Luck nudges the attacker's effective accuracy.
+    const int luck = (int)(TotalBlessingEffect(attacker, LUCK) * 100.0f);
+    const int hitChance = ClampPercent(atk.accuracy + luck, 100);
     if (!RollChance(hitChance)) {
         result.didMiss = 1;
         return result;
     }
 
-    // 2. Calculate base damage
-    long long baseDamage = attacker->attribute.attack;
+    // 3. Calculate base damage
+    long long baseDamage = atk.attack;
 
-    // 3. Apply damage boost
-    const float damageMultiplier = 1.0f + ((float)attacker->attribute.damageBoost / 100.0f);
+    // 4. Apply damage boost
+    const float damageMultiplier = 1.0f + ((float)atk.damageBoost / 100.0f);
     baseDamage = (long long)((float)baseDamage * damageMultiplier);
 
-    // 4. Check for critical hit
-    result.isCritical = RollChance(attacker->attribute.criticalChange);
+    // 5. Check for critical hit
+    result.isCritical = RollChance(ClampPercent(atk.criticalChange + luck, 100));
     if (result.isCritical) {
-        const float critMultiplier = 1.0f + ((float)attacker->attribute.criticalDamage / 100.0f);
+        const float critMultiplier = 1.0f + ((float)atk.criticalDamage / 100.0f);
         baseDamage = (long long)((float)baseDamage * critMultiplier);
     }
 
     result.rawDamage = baseDamage;
 
-    // 5. Apply armor penetration
-    const float armorPen = CalculateTotalBlessingEffect(attacker, ARMOR_PENETRATION);
-    const long long effectiveDefense = (long long)((float)defender->attribute.defense * (1.0f - armorPen));
+    // 6. Apply armor penetration
+    float armorPen = TotalBlessingEffect(attacker, ARMOR_PENETRATION);
+    if (armorPen > 1.0f) armorPen = 1.0f;
+    long long effectiveDefense = (long long)((float)def.defense * (1.0f - armorPen));
 
-    // 6. Calculate damage after defense
+    // 7. Shield boost adds flat mitigation on top of defence.
+    effectiveDefense += (long long)((float)def.maxHP
+                                    * TotalBlessingEffect(defender, SHIELD_BOOST) * 0.01f);
+
+    // 8. Calculate damage after defense
     long long damageAfterDefense = baseDamage - effectiveDefense;
     if (damageAfterDefense < 1) {
         damageAfterDefense = 1; // Minimum 1 damage
     }
 
-    // 7. Apply elemental damage
-    const float fireDmg = CalculateTotalBlessingEffect(attacker, FIRE_DAMAGE);
-    const float iceDmg = CalculateTotalBlessingEffect(attacker, ICE_DAMAGE);
-    const float poisonDmg = CalculateTotalBlessingEffect(attacker, POISON_DAMAGE);
+    // 9. Apply elemental damage
+    const float fireDmg = TotalBlessingEffect(attacker, FIRE_DAMAGE);
+    const float iceDmg = TotalBlessingEffect(attacker, ICE_DAMAGE);
+    const float poisonDmg = TotalBlessingEffect(attacker, POISON_DAMAGE);
 
     long long elementalDamage = 0;
-    elementalDamage += (long long)((float)baseDamage * fireDmg * (1.0f - (float)defender->attribute.fireResistance / 100.0f));
-    elementalDamage += (long long)((float)baseDamage * iceDmg * (1.0f - (float)defender->attribute.iceResistance / 100.0f));
-    elementalDamage += (long long)((float)baseDamage * poisonDmg * (1.0f - (float)defender->attribute.poisonResistance / 100.0f));
+    elementalDamage += (long long)((float)baseDamage * fireDmg * (1.0f - (float)def.fireResistance / 100.0f));
+    elementalDamage += (long long)((float)baseDamage * iceDmg * (1.0f - (float)def.iceResistance / 100.0f));
+    elementalDamage += (long long)((float)baseDamage * poisonDmg * (1.0f - (float)def.poisonResistance / 100.0f));
+    if (elementalDamage < 0) elementalDamage = 0;
 
     result.finalDamage = damageAfterDefense + elementalDamage;
 
-    // 8. Calculate lifesteal
-    if (attacker->attribute.lifeSteal > 0) {
-        result.lifeStealAmount = (long long)((float)result.finalDamage * ((float)attacker->attribute.lifeSteal / 100.0f));
+    // 10. Calculate lifesteal
+    if (atk.lifeSteal > 0) {
+        result.lifeStealAmount = (long long)((float)result.finalDamage * ((float)atk.lifeSteal / 100.0f));
     }
 
-    // 9. Check for DoT application
+    // 11. Check for DoT application
     CollectDoTEffects(attacker, &result);
 
-    // 10. Calculate thorn damage (defender's retaliation)
-    float thornEffect = CalculateTotalBlessingEffect(defender, THORN);
+    // 12. Calculate thorn damage (defender's retaliation)
+    const float thornEffect = TotalBlessingEffect(defender, THORN);
     if (thornEffect > 0.0f) {
         result.thornDamage = (long long)((float)result.finalDamage * thornEffect);
     }
@@ -189,11 +212,12 @@ void ApplyDamageResult(Character* attacker, Character* defender, const DamageRes
     }
     AddCombatLog(logMsg);
 
-    // Apply lifesteal
+    // Apply lifesteal, capped at the attacker's derived maximum health.
     if (result->lifeStealAmount > 0) {
+        const CombatAttribute atk = ResolveAttributes(attacker);
         attacker->attribute.hp += result->lifeStealAmount;
-        if (attacker->attribute.hp > attacker->attribute.maxHP) {
-            attacker->attribute.hp = attacker->attribute.maxHP;
+        if (attacker->attribute.hp > atk.maxHP) {
+            attacker->attribute.hp = atk.maxHP;
         }
         sprintf(logMsg, "%s healed %lld HP (Lifesteal)",
                 attacker->name, result->lifeStealAmount);
@@ -292,13 +316,14 @@ void ProcessStatusEffects(Character* character) {
 //  REGENERATION TICK
 //=====================================
 void ProcessRegeneration(Character* character) {
-    if (character->attribute.regen > 0 && character->attribute.hp < character->attribute.maxHP) {
-        const long long healAmount = (long long)((float)character->attribute.maxHP *
-                                          ((float)character->attribute.regen / 100.0f));
+    const CombatAttribute a = ResolveAttributes(character);
+
+    if (a.regen > 0 && character->attribute.hp < a.maxHP) {
+        const long long healAmount = (long long)((float)a.maxHP * ((float)a.regen / 100.0f));
         character->attribute.hp += healAmount;
 
-        if (character->attribute.hp > character->attribute.maxHP) {
-            character->attribute.hp = character->attribute.maxHP;
+        if (character->attribute.hp > a.maxHP) {
+            character->attribute.hp = a.maxHP;
         }
 
         char logMsg[256];

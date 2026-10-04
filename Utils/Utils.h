@@ -65,5 +65,15 @@ typedef enum {
 
 } Color;
 
-void printColor(Color color, const char* format, ...);
+// The format attribute lets the compiler type-check printColor's variadic
+// arguments exactly as it would for printf. Without it a wrong conversion
+// (for example a struct passed to %s) compiles silently.
+#if defined(__GNUC__) || defined(__clang__)
+#define PRINTF_LIKE(fmtArg, firstVararg) \
+    __attribute__((format(printf, (fmtArg), (firstVararg))))
+#else
+#define PRINTF_LIKE(fmtArg, firstVararg)
+#endif
+
+void printColor(Color color, const char* format, ...) PRINTF_LIKE(2, 3);
 #endif

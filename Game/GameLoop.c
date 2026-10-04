@@ -11,6 +11,23 @@
 #define MAX_COMBAT_LOG 10
 
 //=====================================
+//  CONSOLE INITIALISATION
+//=====================================
+// The UI emits ANSI SGR escape sequences, box-drawing characters and emoji.
+// Without these two calls a stock Windows console prints the escapes
+// literally and mangles every non-ASCII glyph.
+void InitConsole(void) {
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
+    const HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    if (out != INVALID_HANDLE_VALUE && GetConsoleMode(out, &mode)) {
+        SetConsoleMode(out, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
+}
+
+//=====================================
 //  COMBAT LOG SYSTEM
 //=====================================
 typedef struct {
@@ -45,10 +62,17 @@ void ClearCombatLog() {
 //  UI DRAWING FUNCTIONS
 //=====================================
 void DrawHPBar(const Character* character, const int barWidth) {
-    const int filledBars = (int)((float)character->attribute.hp / (float)character->attribute.maxHP * (float)barWidth);
+    // Use the derived maximum: blessings change it, and the bar must be drawn
+    // against the same value combat uses.
+    const CombatAttribute a = ResolveAttributes(character);
+    const long long maxHP = (a.maxHP > 0) ? a.maxHP : 1;
+
+    int filledBars = (int)((float)a.hp / (float)maxHP * (float)barWidth);
+    if (filledBars < 0) filledBars = 0;
+    if (filledBars > barWidth) filledBars = barWidth;
 
     // Color based on HP percentage
-    const float hpPercent = (float)character->attribute.hp / (float)character->attribute.maxHP;
+    const float hpPercent = (float)a.hp / (float)maxHP;
     Color hpColor;
     if (hpPercent > 0.6f) hpColor = COL_GREEN;
     else if (hpPercent > 0.3f) hpColor = COL_YELLOW;
@@ -99,6 +123,9 @@ void DrawCombatUI(const Character* player, const Character* enemy, const int flo
 
     // Enemy type indicator
     switch (enemy->type) {
+        case PLAYER:
+            printf("[     ]");
+            break;
         case NORMAL:
             printColor(COL_GREEN, "[NORMAL]");
             break;
@@ -116,16 +143,18 @@ void DrawCombatUI(const Character* player, const Character* enemy, const int flo
     printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n\n");
 
     // Player HP
-    printColor(COL_BOLD, "%-20s ", player->name);
+    const CombatAttribute pa = ResolveAttributes(player);
+    printColor(COL_BOLD, "%-20.20s ", player->name);
     DrawHPBar(player, 30);
-    printf(" %lld/%lld", player->attribute.hp, player->attribute.maxHP);
+    printf(" %lld/%lld", pa.hp, pa.maxHP);
     DrawStatusIcons(player);
     printf("\n");
 
     // Enemy HP
-    printColor(COL_BOLD, "%-20s ", enemy->name);
+    const CombatAttribute ea = ResolveAttributes(enemy);
+    printColor(COL_BOLD, "%-20.20s ", enemy->name);
     DrawHPBar(enemy, 30);
-    printf(" %lld/%lld", enemy->attribute.hp, enemy->attribute.maxHP);
+    printf(" %lld/%lld", ea.hp, ea.maxHP);
     DrawStatusIcons(enemy);
     printf("\n\n");
 
@@ -143,8 +172,9 @@ void DrawCombatUI(const Character* player, const Character* enemy, const int flo
         printColor(COL_BOLD, " ║\n");
     }
 
-    // Fill empty log lines
-    for (int i = combatLog.count; i < 8; i++) {
+    // Fill empty log lines up to the buffer capacity, so the frame height is
+    // constant however many entries are live.
+    for (int i = combatLog.count; i < MAX_COMBAT_LOG; i++) {
         printColor(COL_BOLD, "║                                                            ║\n");
     }
 
@@ -167,12 +197,17 @@ void PlayerAttackAction(Character* player, Character* enemy) {
 }
 
 void PlayerDefendAction(Character* player) {
-    // Defend reduces next incoming damage by 50% (we'll store this as a temporary defense boost)
-    const long long defenseBoost = player->attribute.defense / 2;
-    player->attribute.defense += defenseBoost;
+    // Defend reduces the next incoming attack. The bonus is turn-scoped: it is
+    // written to tempDefenseBonus (cleared at the start of the player's next
+    // turn) rather than added to the base defence, which previously made it
+    // permanent and stackable on every press.
+    const CombatAttribute a = ResolveAttributes(player);
+    const long long defenseBoost = (a.defense - player->tempDefenseBonus) / 2 + 1;
+    player->tempDefenseBonus = defenseBoost;
 
     char logMsg[256];
-    sprintf(logMsg, "%s takes a defensive stance! (+%lld DEF)", player->name, defenseBoost);
+    sprintf(logMsg, "%s takes a defensive stance! (+%lld DEF this turn)",
+            player->name, defenseBoost);
     AddCombatLog(logMsg);
 }
 
@@ -203,27 +238,36 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
 
     int combatRunning = 1;
     int playerTurn = 1;
+    // Start-of-turn upkeep must run exactly once per turn. Menu actions that
+    // consume no turn (viewing a profile, an unrecognised key) re-enter this
+    // loop, and without this guard they re-ticked statuses and regeneration
+    // every time: free healing and debuffs that expired while browsing.
+    int upkeepDone = 0;
 
     // ReSharper disable once CppDFAConstantConditions
     while (combatRunning) {
         DrawCombatUI(player, enemy, floor);
 
         if (playerTurn) {
-            // Check for status effects
-            ProcessStatusEffects(player);
-            ProcessRegeneration(player);
+            if (!upkeepDone) {
+                // Last turn's Defend expires now, before the player acts.
+                player->tempDefenseBonus = 0;
+                ProcessStatusEffects(player);
+                ProcessRegeneration(player);
+                upkeepDone = 1;
 
-            if (player->attribute.hp <= 0) {
-                // ReSharper disable once CppDFAUnusedValue
-                combatRunning = 0;
-                break;
-            }
+                if (player->attribute.hp <= 0) {
+                    combatRunning = 0;
+                    break;
+                }
 
-            if (IsIncapacitated(player)) {
-                AddCombatLog("Player is incapacitated!");
-                playerTurn = 0;
-                Sleep(1000);
-                continue;
+                if (IsIncapacitated(player)) {
+                    AddCombatLog("Player is incapacitated!");
+                    playerTurn = 0;
+                    upkeepDone = 0;
+                    Sleep(1000);
+                    continue;
+                }
             }
 
             // Player action menu
@@ -249,13 +293,17 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
                 case '1':
                     PlayerAttackAction(player, enemy);
                     playerTurn = 0;
+                    upkeepDone = 0;
                     break;
 
                 case '2':
                     PlayerDefendAction(player);
                     playerTurn = 0;
+                    upkeepDone = 0;
                     break;
 
+                // These consume no turn, so upkeepDone stays set and the
+                // start-of-turn effects are not applied a second time.
                 case '3':
                     CharacterRenderer(player);
                     break;
@@ -296,6 +344,7 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
             }
 
             playerTurn = 1;
+            upkeepDone = 0;
 
             // Check if player is dead
             if (player->attribute.hp <= 0) {
@@ -317,23 +366,23 @@ int RunCombat(Character* player, Character* enemy, const int floor) {
 //  POST-COMBAT REWARDS
 //=====================================
 void ApplyPostCombatHealing(Character* player) {
-    // 10% max HP regen
-    const long long baseHeal = player->attribute.maxHP / 10;
+    // Heal against the derived maximum, which is what the bar and combat use.
+    const CombatAttribute a = ResolveAttributes(player);
 
-    // Additional healing from regen stat
-    const long long regenHeal = (long long)((float)player->attribute.maxHP * ((float)player->attribute.regen / 100.0f));
-
+    const long long baseHeal = a.maxHP / 10;                                   // 10% of max
+    const long long regenHeal = (long long)((float)a.maxHP * ((float)a.regen / 100.0f));
     const long long totalHeal = baseHeal + regenHeal;
 
     player->attribute.hp += totalHeal;
-    if (player->attribute.hp > player->attribute.maxHP) {
-        player->attribute.hp = player->attribute.maxHP;
+    if (player->attribute.hp > a.maxHP) {
+        player->attribute.hp = a.maxHP;
     }
+    player->tempDefenseBonus = 0;   // no Defend bonus carries between fights
 
     system("cls");
     printColor(COL_GREEN, "Victory!\n\n");
     printColor(COL_CYAN, "You recovered %lld HP (10%% base + regen bonus)\n", totalHeal);
-    printf("Current HP: %lld/%lld\n\n", player->attribute.hp, player->attribute.maxHP);
+    printf("Current HP: %lld/%lld\n\n", player->attribute.hp, a.maxHP);
 
     printf("Press any key to continue...");
     _getch();
@@ -342,7 +391,7 @@ void ApplyPostCombatHealing(Character* player) {
 //=====================================
 //  MAIN GAME LOOP
 //=====================================
-void StartGame() {
+void StartGame(void) {
     char playerName[100];
 
     system("cls");
@@ -375,14 +424,17 @@ void StartGame() {
 
             // Give blessing reward
             if (enemy.type == BOSS) {
-                // Boss defeated - give legendary blessing
+                // Boss defeated - give a legendary blessing. Picked uniformly
+                // at random rather than taking the first match, which made
+                // every boss reward the same blessing and left the other
+                // legendaries unobtainable.
                 const BlessingDatabase* db = GetBlessingDatabase();
-                // Find a legendary blessing
-                Blessing* legendary = NULL;
+                const Blessing* legendary = NULL;
+                int seen = 0;
                 for (int i = 0; i < db->count; i++) {
                     if (db->blessings[i].rarity == RARITY_LEGENDARY) {
-                        legendary = &db->blessings[i];
-                        break;
+                        seen++;
+                        if (rand() % seen == 0) legendary = &db->blessings[i];
                     }
                 }
                 if (legendary) {

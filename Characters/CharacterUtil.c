@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "Character.h"
+#include "../Game/Game.h"
 #include "../Utils/Utils.h"
 
 #define LABEL_WIDTH 14
@@ -15,9 +16,12 @@ Character playerBluePrint = {
     .name = "",
     .type = PLAYER,
     .attribute = {
-        .maxHP = 100,
-        .hp = 100,
-        .attack = 10,
+        // Balance values, not placeholders. These are commensurate with the
+        // enemy scaling curves in this file: a floor-1 normal enemy has 116
+        // health and 11 attack.
+        .maxHP = 120,
+        .hp = 120,
+        .attack = 14,
         .defense = 5,
         .criticalChange = 20,
         .criticalDamage = 80,
@@ -29,6 +33,7 @@ Character playerBluePrint = {
         .lifeSteal = 0,
         .regen = 0,
     },
+    .tempDefenseBonus = 0,
     .blessingCount = 0,
     .statusCount = 0,
 };
@@ -46,16 +51,35 @@ void CharacterAddBlessing(Character* target, const Blessing* blessing) {
         target->blessingCount++;
     }
 }
+// Hard ceiling on how long a single status may persist. Without it, several
+// sources of the same status can add duration faster than the one-per-turn
+// tick removes it, which locks a stunned or frozen target out permanently.
+#define MAX_STATUS_DURATION 5
+
 void CharacterAddStatus(Character* character, const Status* status) {
     for (int i = 0; i < character->statusCount; i++) {
-        if (character->currentStatus[i].type == status->type) {
-            character->currentStatus[i].duration += 1;
+        Status* existing = &character->currentStatus[i];
+        if (existing->type == status->type) {
+            // Refresh rather than accumulate, and keep the stronger magnitude:
+            // a stack-scaled DoT must not be downgraded by a later weak one.
+            if (status->baseAmount > existing->baseAmount) {
+                existing->baseAmount = status->baseAmount;
+            }
+            if (status->duration > existing->duration) {
+                existing->duration = status->duration;
+            }
+            if (existing->duration > MAX_STATUS_DURATION) {
+                existing->duration = MAX_STATUS_DURATION;
+            }
             return;
         }
     }
 
     if (character->statusCount < 100) {
         character->currentStatus[character->statusCount] = *status;
+        if (character->currentStatus[character->statusCount].duration > MAX_STATUS_DURATION) {
+            character->currentStatus[character->statusCount].duration = MAX_STATUS_DURATION;
+        }
         character->statusCount++;
     }
 }
@@ -64,28 +88,36 @@ void CharacterAddStatus(Character* character, const Status* status) {
 //=====================================
 void CharacterStatsTab(void* data) {
     const Character* character = (Character*)data;
+    // Show the effective statistics (base + blessings), which is what combat
+    // actually uses, with the base in parentheses where the two differ.
+    const CombatAttribute a = ResolveAttributes(character);
+    const CombatAttribute b = character->attribute;
+
     printColor(COL_BOLD, "Primary Stats\n");
-    printf("   HP                : %lld\n", character->attribute.maxHP);
-    printf("   Attack            : %lld\n", character->attribute.attack);
-    printf("   Defense           : %lld\n", character->attribute.defense);
-    printf("\n");
+    printf("   HP                : %lld / %lld\n", a.hp, a.maxHP);
+    printf("   Attack            : %lld\n", a.attack);
+    printf("   Defense           : %lld", a.defense);
+    if (a.defense != b.defense) printf("  (base %lld)", b.defense);
+    printf("\n\n");
 
     printColor(COL_BOLD, "Offensive Stats\n");
-    printf("   Crit Chance       : %d\n",  character->attribute.criticalChange);
-    printf("   Crit Damage       : %d\n",  character->attribute.criticalDamage);
-    printf("   Accuracy          : %d\n",  character->attribute.accuracy);
-    printf("   Damage Boost      : %d\n",  character->attribute.damageBoost);
+    printf("   Crit Chance       : %d%%\n", a.criticalChange);
+    printf("   Crit Damage       : %d%%\n", a.criticalDamage);
+    printf("   Accuracy          : %d%%\n", a.accuracy);
+    printf("   Damage Boost      : %d%%\n", a.damageBoost);
     printf("\n");
 
     printColor(COL_BOLD, "Elemental Stats\n");
-    printf("   Fire Resistance   : %d\n",  character->attribute.fireResistance);
-    printf("   Ice Resistance    : %d\n",  character->attribute.iceResistance);
-    printf("   Poison Resistance : %d\n",  character->attribute.poisonResistance);
+    printf("   Fire Resistance   : %d%%\n", a.fireResistance);
+    printf("   Ice Resistance    : %d%%\n", a.iceResistance);
+    printf("   Poison Resistance : %d%%\n", a.poisonResistance);
     printf("\n");
 
     printColor(COL_BOLD, "Unique Stats\n");
-    printf("   Life Steal        : %d\n",  character->attribute.lifeSteal);
-    printf("   Regen             : %d\n",  character->attribute.regen);
+    printf("   Life Steal        : %d%%\n", a.lifeSteal);
+    printf("   Regen             : %d%%\n", a.regen);
+    printf("   Thorn             : %.0f%%\n",
+           TotalBlessingEffect(character, THORN) * 100.0f);
 }
 void RarityColor(const BlessingRarity rarity) {
     switch (rarity) {
@@ -108,6 +140,7 @@ const char* BlessingEffectString(const BlessingEffectType e) {
         case CRITICAL_CHANGE: return "Critical Change";
         case CRITICAL_DAMAGE: return "Critical Damage";
         case ARMOR_PENETRATION: return "Armor Penetration";
+        case ACCURACY_BOOST: return "Accuracy Boost";
         case FIRE_DAMAGE: return "Fire Damage";
         case ICE_DAMAGE: return "Ice Damage";
         case POISON_DAMAGE: return "Poison Damage";
@@ -161,7 +194,7 @@ void BlessingTotalValueColor(const float totalPercent) {
 void CharacterBlessingTab(void* data) {
     const Character* character = (Character*)data;
     for (int i = 0; i < character->blessingCount; i++) {
-        printColor(COL_BOLD, "[%d] %s\n", i + 1, character->currentBlessing[i]);
+        printColor(COL_BOLD, "[%d] %s\n", i + 1, character->currentBlessing[i].name);
         printf("    %-*s : ", LABEL_WIDTH, "Rarity"); RarityColor(character->currentBlessing[i].rarity);
         printf("\n");
         printf("    %-*s : ", LABEL_WIDTH, "Stacks"); BlessingStackColor(character->currentBlessing[i].stacks);
@@ -235,6 +268,9 @@ static int ScalePercentage(const int base, const int floor, const float multipli
 static int CalculateBlessingCount(const int floor, const CharacterType type) {
     int baseCount = 0;
     switch(type) {
+        case PLAYER:
+            baseCount = 0;
+            break;
         case NORMAL:
             baseCount = (floor / 5);
             break;
@@ -254,6 +290,9 @@ static long long CalculateBlessingStacks(const int floor, const CharacterType ty
     long long stacks;
 
     switch(type) {
+        case PLAYER:
+            stacks = 1;
+            break;
         case NORMAL:
             // Conservative: 1 + floor/4
             // Floor 1: 1, Floor 10: 3, Floor 40: 11, Floor 100: 26
@@ -297,7 +336,9 @@ void InitRandomGenerator() {
 Character GenerateEnemy(const int floor) {
     InitRandomGenerator();
 
-    Character enemy;
+    // Zero-initialise: the struct has fields (tempDefenseBonus, the unused
+    // tail of the blessing array) that are otherwise left indeterminate.
+    Character enemy = {0};
     const CharacterType type = DetermineEnemyType(floor);
     enemy.type = type;
 
@@ -315,6 +356,7 @@ Character GenerateEnemy(const int floor) {
     float defMult = 1.0f;
 
     switch(type) {
+        case PLAYER:   // never generated as an enemy; fall through to Normal
         case NORMAL:
             strcpy(enemy.name, "Normal Enemy");
             hpMult = 1.0f;
@@ -356,30 +398,46 @@ Character GenerateEnemy(const int floor) {
     enemy.attribute.poisonResistance = ScalePercentage(0, floor, 0.5f, 50);
 
     // Sustain stats
-    enemy.attribute.lifeSteal = ScalePercentage(0, floor, 0.3f, 30);           // Cap at 30%
-    enemy.attribute.regen = ScalePercentage(0, floor, 0.4f, 20);               // Cap at 20%
+    // Regeneration heals a PERCENTAGE of maximum health, and maximum health
+    // grows exponentially with the floor (ScaleHP), so the amount healed grows
+    // exponentially too, while the player's damage grows only linearly in
+    // blessing stacks. At the original 20% cap an enemy regenerated 17 HP per
+    // turn by floor 5 and 1,257 by floor 20 against a player dealing single
+    // digits: every enemy past floor 5 was unkillable. Keep this low enough
+    // that regeneration lengthens a fight rather than deciding it.
+    enemy.attribute.lifeSteal = ScalePercentage(0, floor, 0.3f, 15);           // Cap at 15%
+    enemy.attribute.regen = ScalePercentage(0, floor, 0.15f, 3);               // Cap at 3%
 
     // Generate blessings
     enemy.blessingCount = CalculateBlessingCount(floor, type);
     const BlessingDatabase* db = GetBlessingDatabase();
 
+    if (enemy.blessingCount > 100) enemy.blessingCount = 100;
+
+    // Count the non-legendary entries once, so the draw below can be a bounded
+    // selection instead of a reroll loop that never terminates when the
+    // database happens to hold only legendaries.
+    int ordinaryCount = 0;
+    for (int i = 0; i < db->count; i++) {
+        if (db->blessings[i].rarity != RARITY_LEGENDARY) ordinaryCount++;
+    }
+
     // Bosses get 1 guaranteed legendary blessing
     int startIndex = 0;
     if (type == BOSS) {
-        // Find all legendary blessings
+        // Reservoir-sample one legendary in a single pass: no fixed-size index
+        // buffer, so the database can grow without overflowing anything.
         int legendaryCount = 0;
-        int legendaryIndices[10];  // Assume max 10 legendary in database
-
+        int chosen = -1;
         for (int i = 0; i < db->count; i++) {
             if (db->blessings[i].rarity == RARITY_LEGENDARY) {
-                legendaryIndices[legendaryCount++] = i;
+                legendaryCount++;
+                if (rand() % legendaryCount == 0) chosen = i;
             }
         }
 
-        if (legendaryCount > 0) {
-            // Pick random legendary
-            const int randomLegendary = legendaryIndices[rand() % legendaryCount];
-            enemy.currentBlessing[0] = db->blessings[randomLegendary];
+        if (chosen >= 0 && enemy.blessingCount < 100) {
+            enemy.currentBlessing[0] = db->blessings[chosen];
             enemy.currentBlessing[0].stacks = CalculateBlessingStacks(floor, type);
             startIndex = 1;
             enemy.blessingCount++; // Add 1 for the legendary
@@ -388,11 +446,19 @@ Character GenerateEnemy(const int floor) {
 
     // Generate remaining blessings (non-legendary for variety)
     for (int i = startIndex; i < enemy.blessingCount && i < 100; i++) {
-        // Random blessing from database (excluding legendary for non-boss or additional boss blessings)
-        int randomIndex;
-        do {
-            randomIndex = rand() % db->count;
-        } while (db->blessings[randomIndex].rarity == RARITY_LEGENDARY);
+        if (ordinaryCount == 0) {           // nothing eligible to draw
+            enemy.blessingCount = i;
+            break;
+        }
+        // Pick the n-th non-legendary entry directly.
+        int pick = rand() % ordinaryCount;
+        int randomIndex = 0;
+        for (int j = 0; j < db->count; j++) {
+            if (db->blessings[j].rarity != RARITY_LEGENDARY) {
+                if (pick == 0) { randomIndex = j; break; }
+                pick--;
+            }
+        }
 
         enemy.currentBlessing[i] = db->blessings[randomIndex];
 

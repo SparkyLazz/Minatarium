@@ -153,6 +153,37 @@ static Blessing sampleBlessings[] = {
         .dotsCount = 0
     },
 
+    {
+        .id = 18,
+        .name = "Spiked Carapace",
+        .description = "Returns a share of damage taken to the attacker",
+        .rarity = RARITY_EPIC,
+        .stacks = 0,
+        .effects = {{THORN, 0.15f}, {DEFENSE_BOOST, 0.10f}},
+        .effectsCount = 2,
+        .dotsCount = 0
+    },
+    {
+        .id = 19,
+        .name = "Gambler's Coin",
+        .description = "Improves accuracy and critical chance alike",
+        .rarity = RARITY_RARE,
+        .stacks = 0,
+        .effects = {{LUCK, 0.05f}, {ACCURACY_BOOST, 0.05f}},
+        .effectsCount = 2,
+        .dotsCount = 0
+    },
+    {
+        .id = 20,
+        .name = "Aegis Ward",
+        .description = "A shield that scales with maximum health",
+        .rarity = RARITY_RARE,
+        .stacks = 0,
+        .effects = {{SHIELD_BOOST, 0.02f}, {REGEN_BOOST, 0.02f}},
+        .effectsCount = 2,
+        .dotsCount = 0
+    },
+
     // LEGENDARY BLESSINGS (14-16)
     {
         .id = 15,
@@ -202,6 +233,20 @@ static Blessing sampleBlessings[] = {
             {{POISON, 12.0f, 6}, 70}
         },
         .dotsCount = 3
+    },
+    {
+        .id = 21,
+        .name = "Aetherial Form",
+        .description = "A chance to phase through an incoming attack entirely",
+        .rarity = RARITY_LEGENDARY,
+        .stacks = 0,
+        .effects = {
+            {INVULNERABLE, 0.05f},
+            {DEFENSE_BOOST, 0.20f},
+            {REGEN, 0.05f}
+        },
+        .effectsCount = 3,
+        .dotsCount = 0
     }
 };
 static BlessingDatabase globalDB = {

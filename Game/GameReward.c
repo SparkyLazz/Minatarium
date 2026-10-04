@@ -33,14 +33,43 @@ Blessing* GetRandomBlessingInRange(const BlessingDatabase* db, const BlessingRar
     }
     return NULL;
 }
-void initRandom() {
+// Draws `wanted` DISTINCT blessings from the given rarity range into out[].
+// Returns how many it managed to supply, which is fewer than `wanted` only
+// when the range does not contain that many entries. The previous code made
+// three independent draws, so the same blessing could be offered two or three
+// times in one choice.
+int GetDistinctBlessingsInRange(const BlessingDatabase* db,
+                                const BlessingRarity minRarity,
+                                const BlessingRarity maxRarity,
+                                const Blessing** out, const int wanted) {
+    int eligible[256];
+    int eligibleCount = 0;
+    for (int i = 0; i < db->count && eligibleCount < 256; i++) {
+        if (db->blessings[i].rarity >= minRarity && db->blessings[i].rarity <= maxRarity) {
+            eligible[eligibleCount++] = i;
+        }
+    }
+
+    // Partial Fisher-Yates: shuffle only as many slots as we need.
+    const int take = (wanted < eligibleCount) ? wanted : eligibleCount;
+    for (int i = 0; i < take; i++) {
+        const int j = i + rand() % (eligibleCount - i);
+        const int tmp = eligible[i];
+        eligible[i] = eligible[j];
+        eligible[j] = tmp;
+        out[i] = &db->blessings[eligible[i]];
+    }
+    return take;
+}
+
+void initRandom(void) {
     static int initialized = 0;
     if (!initialized) {
         srand((unsigned int)time(NULL));
         initialized = 1;
     }
 }
-void DisplayBlessingChoice(Blessing* blessing, const int index, const int selected) {
+void DisplayBlessingChoice(const Blessing* blessing, const int index, const int selected) {
     if (selected) {
         printColor(COL_BOLD, ">>> ");
     } else {
@@ -77,6 +106,12 @@ void DisplayBlessingChoice(Blessing* blessing, const int index, const int select
             case CRITICAL_CHANGE: effectName = "Crit Chance"; break;
             case CRITICAL_DAMAGE: effectName = "Crit Damage"; break;
             case ARMOR_PENETRATION: effectName = "Armor Pen"; break;
+            case ACCURACY_BOOST: effectName = "Accuracy Boost"; break;
+            case SHIELD_BOOST: effectName = "Shield Boost"; break;
+            case REGEN_BOOST: effectName = "Regen Boost"; break;
+            case THORN: effectName = "Thorn"; break;
+            case LUCK: effectName = "Luck"; break;
+            case INVULNERABLE: effectName = "Invulnerable"; break;
             case FIRE_DAMAGE: effectName = "Fire Damage"; break;
             case ICE_DAMAGE: effectName = "Ice Damage"; break;
             case POISON_DAMAGE: effectName = "Poison Damage"; break;
@@ -97,6 +132,7 @@ void BlessingWinningReward(Character* player, const CharacterType enemyType) {
 
     BlessingRarity minRarity, maxRarity;
     switch (enemyType) {
+        case PLAYER:
         case NORMAL:
             minRarity = RARITY_COMMON;
             maxRarity = RARITY_COMMON;
@@ -115,13 +151,11 @@ void BlessingWinningReward(Character* player, const CharacterType enemyType) {
             break;
     }
 
-    Blessing* choice[3];
-    for (int i = 0; i < 3; i++) {
-        choice[i] = GetRandomBlessingInRange(db, minRarity, maxRarity);
-        if (choice[i] == NULL){
-            printf("Error: Not enough blessings in database!\n");
-            return;
-        }
+    const Blessing* choice[3];
+    const int choiceCount = GetDistinctBlessingsInRange(db, minRarity, maxRarity, choice, 3);
+    if (choiceCount == 0) {
+        printf("Error: Not enough blessings in database!\n");
+        return;
     }
 
     int selectedIndex = 0;
@@ -137,7 +171,7 @@ void BlessingWinningReward(Character* player, const CharacterType enemyType) {
         printColor(COL_BOLD, "╚════════════════════════════════════════════════════════════╝\n\n");
 
         // Display all choices
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < choiceCount; i++) {
             DisplayBlessingChoice(choice[i], i + 1, i == selectedIndex);
         }
 
@@ -148,11 +182,11 @@ void BlessingWinningReward(Character* player, const CharacterType enemyType) {
             key = _getch();
             if (key == 72) { // Up
                 selectedIndex--;
-                if (selectedIndex < 0) selectedIndex = 2;
+                if (selectedIndex < 0) selectedIndex = choiceCount - 1;
             }
             else if (key == 80) { // Down
                 selectedIndex++;
-                if (selectedIndex > 2) selectedIndex = 0;
+                if (selectedIndex >= choiceCount) selectedIndex = 0;
             }
         }
         else if (key == 13) { // Enter
@@ -168,7 +202,7 @@ void BlessingWinningReward(Character* player, const CharacterType enemyType) {
     printf("\nPress any key to continue...");
     _getch();
 }
-void BlessingBossReward(Character* player, Blessing* LegendaryBlessing) {
+void BlessingBossReward(Character* player, const Blessing* LegendaryBlessing) {
     int hasLegendary = 0;
     int legendaryIndex = 0;
 

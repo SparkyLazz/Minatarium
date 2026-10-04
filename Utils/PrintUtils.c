@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
-#include "utils.h"
+#include "Utils.h"
 
 static const char* COLOR_CODES[] = {
 

@@ -3,7 +3,7 @@
 #include <conio.h>
 #include <string.h>
 
-#include "Utils/utils.h"
+#include "Utils/Utils.h"
 #include "Characters/Character.h"
 #include "Blessing/Blessing.h"
 #include "Game/Game.h"
@@ -116,6 +116,12 @@ void ShowBlessingEncyclopedia() {
                     case CRITICAL_CHANGE: printf("Critical Chance"); break;
                     case CRITICAL_DAMAGE: printf("Critical Damage"); break;
                     case ARMOR_PENETRATION: printf("Armor Penetration"); break;
+                    case ACCURACY_BOOST: printf("Accuracy Boost"); break;
+                    case SHIELD_BOOST: printf("Shield Boost"); break;
+                    case REGEN_BOOST: printf("Regen Boost"); break;
+                    case THORN: printf("Thorn"); break;
+                    case LUCK: printf("Luck"); break;
+                    case INVULNERABLE: printf("Invulnerable"); break;
                     case FIRE_DAMAGE: printf("Fire Damage"); break;
                     case ICE_DAMAGE: printf("Ice Damage"); break;
                     case POISON_DAMAGE: printf("Poison Damage"); break;
@@ -182,9 +188,9 @@ void ShowEncyclopedia() {
                 system("cls");
                 printColor(COL_BOLD, "Status Effects\n\n");
                 printColor(COL_RED, "Burn: ");
-                printf("Deals damage over time based on attacker's fire damage\n");
+                printf("Deals damage over time set by the blessing, scaled by stacks\n");
                 printColor(COL_GREEN, "Poison: ");
-                printf("Deals damage over time that ignores defense\n");
+                printf("Deals damage over time that ignores defense and resistances\n");
                 printColor(COL_YELLOW, "Stun: ");
                 printf("Prevents the target from taking actions\n");
                 printColor(COL_CYAN, "Freeze: ");
@@ -218,7 +224,9 @@ void ShowEncyclopedia() {
 //=====================================
 //  MAIN MENU
 //=====================================
-int main() {
+int main(void) {
+    InitConsole();
+
     int running = 1;
 
     while (running) {

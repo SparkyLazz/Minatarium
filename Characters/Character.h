@@ -38,10 +38,19 @@ typedef enum {
 //=====================================
 //  CHARACTER MAIN
 //=====================================
+// `attribute` holds the BASE statistics only: the values written once by the
+// generator. Everything blessings modify is derived on demand by
+// ResolveAttributes() and never written back here, so the derivation stays
+// idempotent no matter how often it runs. The single exception is
+// `attribute.hp`, which is genuine per-turn mutable state.
 typedef struct {
     char name[100];
     CharacterType type;
     CombatAttribute attribute;
+
+    // Turn-scoped defence bonus (the Defend action). Cleared at the start of
+    // the owner's next turn; never folded into the base statistics.
+    long long tempDefenseBonus;
 
     Blessing currentBlessing[100];
     int blessingCount;
@@ -67,13 +76,11 @@ void CharacterRenderer(Character* character);
 //=====================================
 //  CHARACTER GENERATOR
 //=====================================
-void InitRandomGenerator();
+void InitRandomGenerator(void);
 CharacterType DetermineEnemyType(int floor);
 Character GenerateEnemy(int floor);
 Character GeneratePlayer(const char* playerName);
-static long long ScaleHP(long long base, int floor, float multiplier);
-static long long ScaleLinearStat(long long base, int floor, float multiplier);
-static int ScalePercentage(int base, int floor, float multiplier, int cap);
-static int CalculateBlessingCount(int floor, CharacterType type);
-static long long CalculateBlessingStacks(int floor, CharacterType type);
+// The scaling helpers are static to CharacterUtil.c and are deliberately not
+// declared here: a `static` declaration in a shared header promises a
+// definition in every translation unit that includes it.
 #endif
